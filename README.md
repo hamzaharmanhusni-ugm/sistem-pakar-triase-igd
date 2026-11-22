@@ -20,6 +20,17 @@ Project akhir mata kuliah **Sistem Pakar Lanjut**, Magister Kecerdasan Artifisia
 
 Penjelasan lengkap: [Representasi Pengetahuan](<01 - Representasi Pengetahuan.md>) dan [Penalaran dan Penjelasan](<02 - Penalaran dan Penjelasan.md>).
 
+## Dokumen proyek
+
+| Dokumen | Berkas |
+| --- | --- |
+| Laporan akhir (PDF/Word) | [`docs/Laporan Akhir - Sistem Pakar Triase IGD.pdf`](<docs/Laporan Akhir - Sistem Pakar Triase IGD.pdf>) · sumber: [`docs/Laporan Akhir.md`](<docs/Laporan Akhir.md>) |
+| Presentasi kelas | [`deck/Presentasi Sistem Pakar Triase IGD.pptx`](<deck/Presentasi Sistem Pakar Triase IGD.pptx>) |
+| Materi pendukung (PPT) | [`deck/Materi Representasi Pengetahuan dan Penalaran.pptx`](<deck/Materi Representasi Pengetahuan dan Penalaran.pptx>) |
+| Dokumen pendukung (PDF/Word) | [`docs/Dokumen Pendukung - Representasi Pengetahuan dan Penalaran.pdf`](<docs/Dokumen Pendukung - Representasi Pengetahuan dan Penalaran.pdf>) |
+
+Membangun ulang: `node deck/build_deck.js`, `node deck/build_materi.js` (butuh `npm install` di `deck/`), dan `python tools/md_to_doc.py` (butuh Microsoft Word di Windows).
+
 ## Instalasi
 
 ### Prasyarat
