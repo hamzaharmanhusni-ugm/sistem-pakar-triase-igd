@@ -1,0 +1,19 @@
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix rep: <http://www.openrdf.org/config/repository#> .
+@prefix sr: <http://www.openrdf.org/config/repository/sail#> .
+@prefix sail: <http://www.openrdf.org/config/sail#> .
+@prefix graphdb: <http://www.ontotext.com/config/graphdb#> .
+
+# Repository knowledge base sistem pakar (berbeda dari triagekg Tugas 4 yang berisi data kunjungan).
+# Ruleset OWL 2 RL: GraphDB menghitung closure (subClassOf, equivalentClass, TransitiveProperty, dst.)
+# setiap kali triple ditambahkan, termasuk triple hasil aturan SPARQL sistem pakar.
+[] a rep:Repository ;
+   rep:repositoryID "triage-es" ;
+   rdfs:label "Sistem Pakar Triase IGD (knowledge base ESI v4)" ;
+   rep:repositoryImpl [
+      rep:repositoryType "graphdb:SailRepository" ;
+      sr:sailImpl [
+         sail:sailType "graphdb:Sail" ;
+         graphdb:ruleset "owl2-rl-optimized"
+      ]
+   ] .

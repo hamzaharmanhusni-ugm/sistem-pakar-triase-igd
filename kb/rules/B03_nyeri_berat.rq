@@ -1,0 +1,14 @@
+# B03 (Gilboy 2012, Gambar 2-1 B): IF skala nyeri >= 7/10 THEN kandidat ESI 2
+PREFIX ex: <http://example.org/triage/>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
+PREFIX prov: <http://www.w3.org/ns/prov#>
+INSERT {
+  ?case ex:candidateESI ex:ESI_2 .
+  ?inf a ex:Inference ; ex:usedRule ex:Rule_B03 ; ex:aboutCase ?case ; ex:concluded ex:ESI_2 ; ex:reason ?why .
+}
+WHERE {
+  ?case a ex:TriageCase ; ex:painScore ?p . FILTER(?p >= 7)
+  BIND(IRI(CONCAT(STR(?case), "_inf_B03")) AS ?inf)
+  BIND(CONCAT("Nyeri berat: skala ", STR(?p), "/10 (ambang >= 7)") AS ?why)
+}

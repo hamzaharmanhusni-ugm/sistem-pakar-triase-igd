@@ -1,0 +1,17 @@
+# E01 (Gilboy 2012, Gambar 2-1 D): IF DangerZoneCase AND kandidat ESI dari resource 3-5 THEN pertimbangkan ESI 2
+PREFIX ex: <http://example.org/triage/>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX prov: <http://www.w3.org/ns/prov#>
+INSERT {
+  ?case ex:candidateESI ex:ESI_2 .
+  ?inf a ex:Inference ; ex:usedRule ex:Rule_E01 ; ex:aboutCase ?case ; ex:concluded ex:ESI_2 ;
+       ex:dependsOn ?infC , ?infD ; ex:reason ?why .
+}
+WHERE {
+  ?case a ex:DangerZoneCase .
+  ?infC ex:usedRule ex:Rule_C01 ; ex:aboutCase ?case ; ex:concluded ?c .
+  ?c ex:levelNumber ?n . FILTER(?n >= 3)
+  ?infD ex:usedRule ex:Rule_D01 ; ex:aboutCase ?case .
+  BIND(IRI(CONCAT(STR(?case), "_inf_E01")) AS ?inf)
+  BIND(CONCAT("Danger zone pada kasus dengan kandidat ESI ", STR(?n), ": naikkan ke ESI 2") AS ?why)
+}

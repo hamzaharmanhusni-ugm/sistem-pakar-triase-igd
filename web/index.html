@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Perlu ke IGD? · Cek tingkat kegawatan</title>
+<meta name="description" content="Jawab beberapa pertanyaan singkat untuk mengetahui apakah perlu segera ke IGD atau cukup ke klinik. Dinilai dengan aturan triase yang digunakan IGD rumah sakit.">
+<meta name="theme-color" content="#0f6b5c">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='9' fill='%230f6b5c'/%3E%3Cpath d='M13.5 7h5v6.5H25v5h-6.5V25h-5v-6.5H7v-5h6.5z' fill='%23fff'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-back" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-next" viewBox="0 0 24 24"><path d="M5 12h13M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-phone" viewBox="0 0 24 24"><path d="M6.6 3.5h3l1.5 4-2 1.3a11 11 0 005.1 5.1l1.3-2 4 1.5v3A2.1 2.1 0 0117.4 18.5 14.9 14.9 0 015.5 6.6 2.1 2.1 0 016.6 3.5z" fill="currentColor"/></symbol>
+  <symbol id="i-pin" viewBox="0 0 24 24"><path d="M12 21s-6.5-6.2-6.5-11a6.5 6.5 0 0113 0c0 4.8-6.5 11-6.5 11z" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="10" r="2.4" fill="currentColor"/></symbol>
+  <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 3l7 3v5.5c0 4.3-3 7.9-7 9.5-4-1.6-7-5.2-7-9.5V6z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M9 12l2 2 4-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-play" viewBox="0 0 20 20"><path d="M6 4l10 6-10 6z" fill="currentColor"/></symbol>
+  <symbol id="i-pause" viewBox="0 0 20 20"><path d="M6 4h3v12H6zM11 4h3v12h-3z" fill="currentColor"/></symbol>
+  <symbol id="i-chev" viewBox="0 0 20 20"><path d="M7 5l5 5-5 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></symbol>
+</svg>
+
+<header class="top">
+  <div class="wrap top-in">
+    <a class="logo" href="/" aria-label="Perlu ke IGD? beranda"><span class="mark" aria-hidden="true"></span><span>Perlu ke IGD?</span></a>
+    <a class="sos" href="tel:119"><svg class="ic"><use href="#i-phone"/></svg><span class="sos-l">Darurat? Telepon</span><b>119</b></a>
+  </div>
+</header>
+
+<main class="wrap stage">
+  <section class="app" aria-live="polite"><div class="screen" id="screen"></div></section>
+  <aside class="side" id="side" aria-label="Ringkasan"></aside>
+</main>
+
+<footer class="wrap foot">
+  <p><svg class="ic"><use href="#i-shield"/></svg><span>Hasil ini bukan diagnosis dan tidak menggantikan pemeriksaan tenaga kesehatan. Bila ragu atau kondisi memburuk, segera ke IGD atau telepon 119.</span></p>
+  <button class="tech-link" type="button" data-act="think">Detail teknis sistem pakar</button>
+</footer>
+
+<div class="backdrop" id="backdrop" hidden></div>
+<aside class="mind" id="mind" aria-label="Cara sistem pakar berpikir" hidden>
+  <div class="mind-head">
+    <div>
+      <h2>Cara sistem pakar berpikir</h2>
+      <p id="mind-sub">Setiap jawaban menjadi fakta di knowledge graph, lalu aturan triase ESI diuji satu per satu.</p>
+    </div>
+    <button class="icon-btn" id="mind-close" type="button" aria-label="Tutup detail teknis"><svg class="ic"><use href="#i-x"/></svg></button>
+  </div>
+  <nav class="mtabs" role="tablist">
+    <button role="tab" aria-selected="true" data-pane="m-flow">Alur ESI</button>
+    <button role="tab" aria-selected="false" data-pane="m-trace">Jejak aturan</button>
+    <button role="tab" aria-selected="false" data-pane="m-cycle">Siklus inferensi</button>
+    <button role="tab" aria-selected="false" data-pane="m-kb">Basis pengetahuan</button>
+  </nav>
+  <div class="mpane" id="m-flow">
+    <ol class="flow" id="flow"></ol>
+    <p class="fine" id="evidence"></p>
+    <h3>Fakta pasien di working memory</h3>
+    <ul class="triples" id="wm"><li class="empty">Belum ada jawaban.</li></ul>
+  </div>
+  <div class="mpane" id="m-trace" hidden><div id="ledger"><p class="empty">Belum ada aturan yang terpicu.</p></div></div>
+  <div class="mpane" id="m-cycle" hidden>
+    <div class="player">
+      <p>Forward chaining: aturan yang cocok menambah fakta baru; diulang sampai tidak ada fakta baru (titik tetap), lalu resolusi konflik.</p>
+      <button class="btn primary sm" type="button" id="p-play"><svg class="ic"><use href="#i-play"/></svg><span>Putar penalaran</span></button>
+    </div>
+    <ol class="timeline" id="timeline"></ol>
+    <p class="fine" id="engine-stats"></p>
+  </div>
+  <div class="mpane" id="m-kb" hidden>
+    <div class="kb-stats" id="kb-stats"></div>
+    <table class="dense" id="rules"></table>
+  </div>
+</aside>
+<script src="/static/app.js"></script>
+</body>
+</html>

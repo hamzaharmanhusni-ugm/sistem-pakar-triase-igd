@@ -1,0 +1,14 @@
+# A02 (Gilboy 2012, Gambar 2-1 A): IF SpO2 < 90 THEN kandidat ESI 1
+PREFIX ex: <http://example.org/triage/>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
+PREFIX prov: <http://www.w3.org/ns/prov#>
+INSERT {
+  ?case ex:candidateESI ex:ESI_1 .
+  ?inf a ex:Inference ; ex:usedRule ex:Rule_A02 ; ex:aboutCase ?case ; ex:concluded ex:ESI_1 ; ex:reason ?why .
+}
+WHERE {
+  ?case a ex:TriageCase ; ex:o2Sat ?s . FILTER(?s < 90)
+  BIND(IRI(CONCAT(STR(?case), "_inf_A02")) AS ?inf)
+  BIND(CONCAT("SpO2 ", STR(?s), "% < 90%: butuh intervensi oksigenasi atau jalan napas segera") AS ?why)
+}

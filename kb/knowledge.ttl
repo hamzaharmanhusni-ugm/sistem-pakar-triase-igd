@@ -1,0 +1,334 @@
+@prefix ex:      <http://example.org/triage/> .
+@prefix rdfs:    <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix skos:    <http://www.w3.org/2004/02/skos/core#> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+
+# =====================================================================
+# Pengetahuan domain Sistem Pakar Triase IGD
+# Sumber utama: Gilboy dkk., ESI Version 4 Implementation Handbook, 2012 Edition (AHRQ 12-0014).
+# skos:altLabel = sinonim bahasa Indonesia untuk pengenalan keluhan dalam percakapan.
+# =====================================================================
+
+# ---------------------------------------------------------------------
+# Sumber pengetahuan
+# ---------------------------------------------------------------------
+ex:Src_ESIv4 a ex:Source ;
+    rdfs:label "Gilboy N, Tanabe P, Travers D, Rosenau AM. Emergency Severity Index (ESI): A Triage Tool for Emergency Department Care, Version 4. Implementation Handbook 2012 Edition. AHRQ Publication No. 12-0014. Rockville, MD: Agency for Healthcare Research and Quality; 2011." ;
+    rdfs:seeAlso <https://www.ahrq.gov/patient-safety/settings/emergency-dept/esi.html> .
+ex:Src_Sepsis3 a ex:Source ;
+    rdfs:label "Singer M, dkk. The Third International Consensus Definitions for Sepsis and Septic Shock (Sepsis-3). JAMA. 2016;315(8):801-810." ;
+    rdfs:seeAlso <https://doi.org/10.1001/jama.2016.0287> .
+ex:Src_ShockIndex a ex:Source ;
+    rdfs:label "Allgower M, Burri C. Schockindex. Deutsche Medizinische Wochenschrift. 1967;92(43):1947-1950." .
+ex:Src_MCMED a ex:Source ;
+    rdfs:label "Kansal A, dkk. MC-MED, multimodal clinical monitoring in the emergency department. Scientific Data. 2025." ;
+    rdfs:seeAlso <https://doi.org/10.1038/s41597-025-05419-5> .
+
+# ---------------------------------------------------------------------
+# Level ESI (urutan keakutan transitif dilengkapi reasoner)
+# ---------------------------------------------------------------------
+ex:ESI_1 a ex:ESILevel ; ex:levelNumber 1 ; rdfs:label "ESI 1: Resusitasi" ; ex:moreAcuteThan ex:ESI_2 .
+ex:ESI_2 a ex:ESILevel ; ex:levelNumber 2 ; rdfs:label "ESI 2: Gawat (emergent)" ; ex:moreAcuteThan ex:ESI_3 .
+ex:ESI_3 a ex:ESILevel ; ex:levelNumber 3 ; rdfs:label "ESI 3: Mendesak (urgent)" ; ex:moreAcuteThan ex:ESI_4 .
+ex:ESI_4 a ex:ESILevel ; ex:levelNumber 4 ; rdfs:label "ESI 4: Kurang mendesak" ; ex:moreAcuteThan ex:ESI_5 .
+ex:ESI_5 a ex:ESILevel ; ex:levelNumber 5 ; rdfs:label "ESI 5: Tidak mendesak" .
+
+# ---------------------------------------------------------------------
+# Algoritma ESI v4 (Gilboy 2012, Gambar 2-1)
+# ---------------------------------------------------------------------
+ex:DP_A a ex:DecisionPoint ; rdfs:label "Decision Point A" ;
+    ex:question "Apakah pasien membutuhkan intervensi penyelamatan nyawa segera?"@id ;
+    ex:conclusionIfYes ex:ESI_1 ; ex:nextIfNo ex:DP_B .
+ex:DP_B a ex:DecisionPoint ; rdfs:label "Decision Point B" ;
+    ex:question "Apakah ini situasi risiko tinggi, pasien bingung/letargi/disorientasi, atau nyeri/distres berat?"@id ;
+    ex:conclusionIfYes ex:ESI_2 ; ex:nextIfNo ex:DP_C .
+ex:DP_C a ex:DecisionPoint ; rdfs:label "Decision Point C" ;
+    ex:question "Berapa jenis resource yang diperkirakan dibutuhkan?"@id ; ex:nextIfNo ex:DP_D .
+ex:DP_D a ex:DecisionPoint ; rdfs:label "Decision Point D" ;
+    ex:question "Apakah tanda vital berada di danger zone?"@id ; ex:conclusionIfYes ex:ESI_2 .
+
+# ---------------------------------------------------------------------
+# Tanda vital dan kelompok usia
+# ---------------------------------------------------------------------
+ex:HR a ex:VitalSign ; rdfs:label "Denyut jantung (x/menit)" .
+ex:RR a ex:VitalSign ; rdfs:label "Laju napas (x/menit)" .
+ex:SpO2 a ex:VitalSign ; rdfs:label "SpO2 (%)" .
+ex:SBP a ex:VitalSign ; rdfs:label "Tekanan darah sistolik (mmHg)" .
+ex:Temp a ex:VitalSign ; rdfs:label "Suhu (°C)" .
+
+ex:Age_0_1m  a ex:AgeGroup ; rdfs:label "1-28 hari" ; ex:minMonths 0 ; ex:maxMonths 1 .
+ex:Age_1_3m  a ex:AgeGroup ; rdfs:label "1-3 bulan" ; ex:minMonths 1 ; ex:maxMonths 3 .
+ex:Age_0_3m  a ex:AgeGroup ; rdfs:label "< 3 bulan" ; ex:minMonths 0 ; ex:maxMonths 3 .
+ex:Age_3m_3y a ex:AgeGroup ; rdfs:label "3 bulan - 3 tahun" ; ex:minMonths 3 ; ex:maxMonths 36 .
+ex:Age_3y_8y a ex:AgeGroup ; rdfs:label "3 - 8 tahun" ; ex:minMonths 36 ; ex:maxMonths 96 .
+ex:Age_8y_up a ex:AgeGroup ; rdfs:label "> 8 tahun" ; ex:minMonths 96 ; ex:maxMonths 1800 .
+ex:Age_All   a ex:AgeGroup ; rdfs:label "semua usia" ; ex:minMonths 0 ; ex:maxMonths 1800 .
+
+# ---------------------------------------------------------------------
+# Ambang danger zone (Gilboy 2012, Gambar 2-1 dan Gambar 5-1)
+# ---------------------------------------------------------------------
+ex:DZ_HR_0_3m  a ex:DangerZoneThreshold ; ex:forAgeGroup ex:Age_0_3m  ; ex:onVital ex:HR ; ex:comparator "gt" ; ex:limit 180.0 ; ex:definedBy ex:Rule_D01 .
+ex:DZ_RR_0_3m  a ex:DangerZoneThreshold ; ex:forAgeGroup ex:Age_0_3m  ; ex:onVital ex:RR ; ex:comparator "gt" ; ex:limit 50.0  ; ex:definedBy ex:Rule_D01 .
+ex:DZ_HR_3m_3y a ex:DangerZoneThreshold ; ex:forAgeGroup ex:Age_3m_3y ; ex:onVital ex:HR ; ex:comparator "gt" ; ex:limit 160.0 ; ex:definedBy ex:Rule_D01 .
+ex:DZ_RR_3m_3y a ex:DangerZoneThreshold ; ex:forAgeGroup ex:Age_3m_3y ; ex:onVital ex:RR ; ex:comparator "gt" ; ex:limit 40.0  ; ex:definedBy ex:Rule_D01 .
+ex:DZ_HR_3y_8y a ex:DangerZoneThreshold ; ex:forAgeGroup ex:Age_3y_8y ; ex:onVital ex:HR ; ex:comparator "gt" ; ex:limit 140.0 ; ex:definedBy ex:Rule_D01 .
+ex:DZ_RR_3y_8y a ex:DangerZoneThreshold ; ex:forAgeGroup ex:Age_3y_8y ; ex:onVital ex:RR ; ex:comparator "gt" ; ex:limit 30.0  ; ex:definedBy ex:Rule_D01 .
+ex:DZ_HR_8y_up a ex:DangerZoneThreshold ; ex:forAgeGroup ex:Age_8y_up ; ex:onVital ex:HR ; ex:comparator "gt" ; ex:limit 100.0 ; ex:definedBy ex:Rule_D01 .
+ex:DZ_RR_8y_up a ex:DangerZoneThreshold ; ex:forAgeGroup ex:Age_8y_up ; ex:onVital ex:RR ; ex:comparator "gt" ; ex:limit 20.0  ; ex:definedBy ex:Rule_D01 .
+ex:DZ_SpO2_all a ex:DangerZoneThreshold ; ex:forAgeGroup ex:Age_All   ; ex:onVital ex:SpO2 ; ex:comparator "lt" ; ex:limit 92.0 ; ex:definedBy ex:Rule_D01 .
+
+# ---------------------------------------------------------------------
+# Resource (Gilboy 2012, Gambar 2-1 dan Tabel 4-1): yang dihitung adalah JENIS resource
+# ---------------------------------------------------------------------
+ex:Res_Lab a ex:Resource ; ex:resourceWeight 1 ; skos:prefLabel "Laboratorium (darah, urin)"@id ;
+    skos:altLabel "lab"@id , "laboratorium"@id , "cek darah"@id , "periksa darah"@id , "darah lengkap"@id , "urinalisis"@id , "tes urin"@id , "elektrolit"@id .
+ex:Res_ECG_Xray a ex:Resource ; ex:resourceWeight 1 ; skos:prefLabel "EKG atau rontgen"@id ;
+    skos:altLabel "ekg"@id , "ecg"@id , "rekam jantung"@id , "rontgen"@id , "x-ray"@id , "foto thorax"@id , "foto dada"@id .
+ex:Res_CT_MRI_USG a ex:Resource ; ex:resourceWeight 1 ; skos:prefLabel "CT, MRI, USG, atau angiografi"@id ;
+    skos:altLabel "ct scan"@id , "ct-scan"@id , "mri"@id , "usg"@id , "ultrasonografi"@id , "angiografi"@id .
+ex:Res_IVFluid a ex:Resource ; ex:resourceWeight 1 ; skos:prefLabel "Cairan IV (hidrasi)"@id ;
+    skos:altLabel "infus"@id , "cairan iv"@id , "cairan infus"@id , "rehidrasi"@id .
+ex:Res_IVMed a ex:Resource ; ex:resourceWeight 1 ; skos:prefLabel "Obat IV, IM, atau nebulisasi"@id ;
+    skos:altLabel "obat iv"@id , "obat suntik"@id , "injeksi"@id , "suntikan"@id , "nebulizer"@id , "nebulisasi"@id , "nebu"@id .
+ex:Res_Consult a ex:Resource ; ex:resourceWeight 1 ; skos:prefLabel "Konsultasi spesialis"@id ;
+    skos:altLabel "konsul"@id , "konsultasi spesialis"@id , "dokter spesialis"@id .
+ex:Res_SimpleProc a ex:Resource ; ex:resourceWeight 1 ; skos:prefLabel "Prosedur sederhana"@id ;
+    skos:altLabel "jahit luka"@id , "hecting"@id , "heacting"@id , "pasang kateter"@id , "kateter urin"@id .
+ex:Res_ComplexProc a ex:Resource ; ex:resourceWeight 2 ; skos:prefLabel "Prosedur kompleks (sedasi)"@id ;
+    skos:altLabel "sedasi"@id , "reposisi dengan sedasi"@id , "prosedur kompleks"@id .
+ex:NR_HistoryPE a ex:NonResource ; skos:prefLabel "Anamnesis dan pemeriksaan fisik"@id .
+ex:NR_POCT a ex:NonResource ; skos:prefLabel "Point-of-care testing (mis. gula darah stik)"@id .
+ex:NR_POMed a ex:NonResource ; skos:prefLabel "Obat oral, vaksin tetanus, resep ulang"@id .
+ex:NR_SimpleWound a ex:NonResource ; skos:prefLabel "Perawatan luka sederhana, bidai, kruk, sling"@id .
+
+# ---------------------------------------------------------------------
+# Sistem organ (pengelompokan Tabel 3-1)
+# ---------------------------------------------------------------------
+ex:Sys_Airway a ex:BodySystem ; rdfs:label "Jalan napas dan pernapasan" .
+ex:Sys_Cardio a ex:BodySystem ; rdfs:label "Kardiovaskular" .
+ex:Sys_Abdomen a ex:BodySystem ; rdfs:label "Abdomen" .
+ex:Sys_Neuro a ex:BodySystem ; rdfs:label "Neurologi" .
+ex:Sys_Trauma a ex:BodySystem ; rdfs:label "Trauma" .
+ex:Sys_MentalHealth a ex:BodySystem ; rdfs:label "Kesehatan jiwa" .
+ex:Sys_ObGyn a ex:BodySystem ; rdfs:label "Obstetri dan ginekologi" .
+ex:Sys_GU a ex:BodySystem ; rdfs:label "Genitourinaria" .
+ex:Sys_EyeENT a ex:BodySystem ; rdfs:label "Mata dan THT" .
+ex:Sys_General a ex:BodySystem ; rdfs:label "Penyakit dalam umum" .
+ex:Sys_Oncology a ex:BodySystem ; rdfs:label "Onkologi" .
+ex:Sys_Pediatric a ex:BodySystem ; rdfs:label "Pediatri" .
+ex:Sys_Musculo a ex:BodySystem ; rdfs:label "Muskuloskeletal dan kulit" .
+
+# ---------------------------------------------------------------------
+# Temuan: Decision Point A (Gilboy 2012, Gambar 2-1 dan Tabel 2-1)
+# ---------------------------------------------------------------------
+ex:Apnea a ex:LifeSavingIndicator ; ex:bodySystem ex:Sys_Airway ; skos:prefLabel "Apnea / henti napas"@id ;
+    skos:altLabel "henti napas"@id , "tidak bernapas"@id , "apnea"@id , "apneu"@id , "napas berhenti"@id .
+ex:Pulseless a ex:LifeSavingIndicator ; ex:bodySystem ex:Sys_Cardio ; skos:prefLabel "Tanpa nadi / henti jantung"@id ;
+    skos:altLabel "nadi tidak teraba"@id , "tanpa nadi"@id , "henti jantung"@id , "cardiac arrest"@id .
+ex:Intubated a ex:LifeSavingIndicator ; ex:bodySystem ex:Sys_Airway ; skos:prefLabel "Terintubasi"@id ;
+    skos:altLabel "terintubasi"@id , "sudah diintubasi"@id , "pakai ett"@id .
+ex:SevereRespDistress a ex:LifeSavingIndicator ; ex:bodySystem ex:Sys_Airway ; skos:prefLabel "Distres napas berat"@id ;
+    skos:altLabel "sesak berat"@id , "sesak napas berat"@id , "megap-megap"@id , "gagal napas"@id , "distres napas berat"@id .
+ex:MajorBleeding a ex:LifeSavingIndicator ; ex:bodySystem ex:Sys_Trauma ; skos:prefLabel "Perdarahan masif"@id ;
+    skos:altLabel "perdarahan hebat"@id , "perdarahan masif"@id , "darah mengucur"@id , "pendarahan hebat"@id .
+ex:Unresponsive a ex:LifeSavingIndicator ; ex:bodySystem ex:Sys_Neuro ; skos:prefLabel "Tidak berespons"@id ;
+    skos:altLabel "tidak sadar"@id , "tidak sadarkan diri"@id , "pingsan tidak bangun"@id , "tidak merespons"@id , "tidak respon"@id .
+
+# ---------------------------------------------------------------------
+# Temuan: Decision Point B, situasi risiko tinggi (Gilboy 2012, Tabel 3-1)
+# ---------------------------------------------------------------------
+ex:ChestPainACS a ex:HighRiskSituation ; ex:bodySystem ex:Sys_Cardio ; skos:prefLabel "Nyeri dada curiga sindrom koroner akut"@id ;
+    skos:altLabel "nyeri dada"@id , "dada seperti ditekan"@id , "dada terasa berat"@id , "nyeri menjalar ke lengan"@id , "sakit dada"@id .
+ex:AcuteLimbIschemia a ex:HighRiskSituation ; ex:bodySystem ex:Sys_Cardio ; skos:prefLabel "Iskemia tungkai akut"@id ;
+    skos:altLabel "kaki dingin dan pucat"@id , "nadi kaki tidak teraba"@id .
+ex:GIBleeding a ex:HighRiskSituation ; ex:bodySystem ex:Sys_Abdomen ; skos:prefLabel "Perdarahan saluran cerna"@id ;
+    skos:altLabel "muntah darah"@id , "bab hitam"@id , "berak darah"@id , "melena"@id , "hematemesis"@id .
+ex:SevereAbdPainElderly a ex:HighRiskSituation ; ex:bodySystem ex:Sys_Abdomen ; skos:prefLabel "Nyeri perut hebat pada lansia"@id ;
+    skos:altLabel "nyeri perut hebat lansia"@id .
+ex:SuddenVisionLoss a ex:HighRiskSituation ; ex:bodySystem ex:Sys_EyeENT ; skos:prefLabel "Kehilangan penglihatan mendadak"@id ;
+    skos:altLabel "tiba-tiba tidak bisa melihat"@id , "penglihatan hilang mendadak"@id , "buta mendadak"@id .
+ex:SevereEyeTrauma a ex:HighRiskSituation ; ex:bodySystem ex:Sys_EyeENT ; skos:prefLabel "Trauma mata berat"@id ;
+    skos:altLabel "trauma mata"@id , "mata tertusuk"@id , "mata tidak bisa dibuka"@id .
+ex:DKARisk a ex:HighRiskSituation ; ex:bodySystem ex:Sys_General ; skos:prefLabel "Diabetes dengan muntah (risiko KAD)"@id ;
+    skos:altLabel "diabetes muntah"@id , "kencing manis muntah"@id , "ketoasidosis"@id .
+ex:DialysisWeakness a ex:HighRiskSituation ; ex:bodySystem ex:Sys_General ; skos:prefLabel "Pasien cuci darah lemas (risiko hiperkalemia)"@id ;
+    skos:altLabel "cuci darah"@id , "hemodialisis"@id , "pasien hd"@id .
+ex:HypertensiveEmergency a ex:HighRiskSituation ; ex:bodySystem ex:Sys_General ; skos:prefLabel "Hipertensi berat dengan gejala"@id ;
+    skos:altLabel "krisis hipertensi"@id , "hipertensi emergensi"@id .
+ex:TesticularTorsion a ex:HighRiskSituation ; ex:bodySystem ex:Sys_GU ; skos:prefLabel "Nyeri testis mendadak"@id ;
+    skos:altLabel "nyeri testis"@id , "nyeri buah zakar"@id , "torsio testis"@id .
+ex:EctopicRisk a ex:HighRiskSituation ; ex:bodySystem ex:Sys_ObGyn ; skos:prefLabel "Hamil muda dengan nyeri perut atau perdarahan (curiga ektopik)"@id ;
+    skos:altLabel "hamil nyeri perut"@id , "hamil muda perdarahan"@id , "kehamilan ektopik"@id , "telat haid nyeri perut"@id .
+ex:TraumaPregnancy a ex:HighRiskSituation ; ex:bodySystem ex:Sys_ObGyn ; skos:prefLabel "Trauma pada ibu hamil"@id ;
+    skos:altLabel "ibu hamil kecelakaan"@id , "hamil jatuh"@id .
+ex:SuicidalIdeation a ex:HighRiskSituation ; ex:bodySystem ex:Sys_MentalHealth ; skos:prefLabel "Ide bunuh diri atau membahayakan orang lain"@id ;
+    skos:altLabel "ingin bunuh diri"@id , "percobaan bunuh diri"@id , "ide bunuh diri"@id , "ingin membunuh"@id .
+ex:Combative a ex:HighRiskSituation ; ex:bodySystem ex:Sys_MentalHealth ; skos:prefLabel "Agresif atau mengamuk"@id ;
+    skos:altLabel "mengamuk"@id , "agresif"@id , "gaduh gelisah"@id .
+ex:StrokeSigns a ex:HighRiskSituation ; ex:bodySystem ex:Sys_Neuro ; skos:prefLabel "Tanda stroke"@id ;
+    skos:altLabel "bicara pelo"@id , "wajah mencong"@id , "lemah separuh badan"@id , "lumpuh sebelah"@id , "stroke"@id .
+ex:MeningitisSigns a ex:HighRiskSituation ; ex:bodySystem ex:Sys_Neuro ; skos:prefLabel "Tanda meningitis"@id ;
+    skos:altLabel "kaku kuduk"@id , "leher kaku"@id , "meningitis"@id .
+ex:ThunderclapHeadache a ex:HighRiskSituation ; ex:bodySystem ex:Sys_Neuro ; skos:prefLabel "Sakit kepala terhebat mendadak"@id ;
+    skos:altLabel "sakit kepala terhebat"@id , "sakit kepala paling hebat"@id , "sakit kepala mendadak hebat"@id .
+ex:FeverImmunocompromised a ex:HighRiskSituation ; ex:bodySystem ex:Sys_Oncology ; skos:prefLabel "Demam pada pasien imunokompromais (kemoterapi)"@id ;
+    skos:altLabel "kemoterapi"@id , "sedang kemo"@id , "neutropenia"@id .
+ex:InfantSevereDehydration a ex:HighRiskSituation ; ex:bodySystem ex:Sys_Pediatric ; skos:prefLabel "Bayi dehidrasi berat"@id ;
+    skos:altLabel "tidak mau minum"@id , "tidak pipis"@id , "popok kering"@id , "dehidrasi berat"@id .
+ex:DroolingDysphagia a ex:HighRiskSituation ; ex:bodySystem ex:Sys_Airway ; skos:prefLabel "Ngiler dan sulit menelan (ancaman jalan napas)"@id ;
+    skos:altLabel "ngiler"@id , "air liur menetes"@id , "sulit menelan"@id , "stridor"@id .
+ex:ModerateRespDistress a ex:HighRiskSituation ; ex:bodySystem ex:Sys_Airway ; skos:prefLabel "Distres napas sedang"@id ;
+    skos:altLabel "sesak napas"@id , "sesak"@id , "mengi"@id , "wheezing"@id , "napas berbunyi"@id .
+ex:HeadInjuryLOC a ex:HighRiskSituation ; ex:bodySystem ex:Sys_Trauma ; skos:prefLabel "Cedera kepala dengan pingsan atau muntah"@id ;
+    skos:altLabel "cedera kepala"@id , "benturan kepala"@id , "kepala terbentur"@id , "sempat pingsan"@id .
+ex:PenetratingWound a ex:HighRiskSituation ; ex:bodySystem ex:Sys_Trauma ; skos:prefLabel "Luka tusuk atau tembak"@id ;
+    skos:altLabel "luka tusuk"@id , "ditusuk"@id , "luka tembak"@id .
+ex:HighRiskMechanism a ex:HighRiskSituation ; ex:bodySystem ex:Sys_Trauma ; skos:prefLabel "Mekanisme cedera berisiko tinggi"@id ;
+    skos:altLabel "kecelakaan motor"@id , "kecelakaan mobil"@id , "kecelakaan lalu lintas"@id , "jatuh dari ketinggian"@id , "tertabrak"@id .
+ex:NeedleStick a ex:HighRiskSituation ; ex:bodySystem ex:Sys_General ; skos:prefLabel "Tertusuk jarum bekas pasien (petugas kesehatan)"@id ;
+    skos:altLabel "tertusuk jarum"@id , "needle stick"@id .
+
+# ---------------------------------------------------------------------
+# Temuan: Decision Point B, perubahan status mental baru (Gilboy 2012, Bab 3)
+# ---------------------------------------------------------------------
+ex:NewConfusion a ex:AlteredMentalStatus ; ex:bodySystem ex:Sys_Neuro ; skos:prefLabel "Bingung, letargi, atau disorientasi baru"@id ;
+    skos:altLabel "bingung"@id , "linglung"@id , "disorientasi"@id , "letargi"@id , "mengantuk terus"@id , "tidur terus"@id , "gelisah bingung"@id .
+
+# ---------------------------------------------------------------------
+# Gejala umum dan faktor risiko
+# ---------------------------------------------------------------------
+ex:Fever a ex:Symptom ; ex:bodySystem ex:Sys_General ; skos:prefLabel "Demam"@id ; skos:altLabel "demam"@id , "panas"@id , "meriang"@id .
+ex:Cough a ex:Symptom ; ex:bodySystem ex:Sys_Airway ; skos:prefLabel "Batuk"@id ; skos:altLabel "batuk"@id , "pilek"@id .
+ex:SoreThroat a ex:Symptom ; ex:bodySystem ex:Sys_EyeENT ; skos:prefLabel "Nyeri tenggorokan"@id ; skos:altLabel "sakit tenggorokan"@id , "nyeri menelan ringan"@id .
+ex:VomitingDiarrhea a ex:Symptom ; ex:bodySystem ex:Sys_Abdomen ; skos:prefLabel "Mual, muntah, atau diare"@id ; skos:altLabel "muntah"@id , "mual"@id , "diare"@id , "mencret"@id .
+ex:AbdominalPain a ex:Symptom ; ex:bodySystem ex:Sys_Abdomen ; skos:prefLabel "Nyeri perut"@id ; skos:altLabel "nyeri perut"@id , "sakit perut"@id , "nyeri ulu hati"@id .
+ex:Headache a ex:Symptom ; ex:bodySystem ex:Sys_Neuro ; skos:prefLabel "Sakit kepala"@id ; skos:altLabel "sakit kepala"@id , "pusing"@id .
+ex:Sprain a ex:Symptom ; ex:bodySystem ex:Sys_Musculo ; skos:prefLabel "Keseleo atau nyeri sendi"@id ; skos:altLabel "keseleo"@id , "terkilir"@id , "nyeri pergelangan"@id , "kaki bengkak"@id .
+ex:MinorLaceration a ex:Symptom ; ex:bodySystem ex:Sys_Musculo ; skos:prefLabel "Luka robek kecil"@id ; skos:altLabel "luka robek"@id , "tergores"@id , "luka sayat"@id .
+ex:UrinarySymptom a ex:Symptom ; ex:bodySystem ex:Sys_GU ; skos:prefLabel "Keluhan berkemih"@id ; skos:altLabel "anyang-anyangan"@id , "nyeri saat kencing"@id , "sering kencing"@id .
+ex:MinorRash a ex:Symptom ; ex:bodySystem ex:Sys_Musculo ; skos:prefLabel "Ruam atau gatal"@id ; skos:altLabel "gatal"@id , "ruam"@id , "biduran"@id .
+ex:IncompleteImmunization a ex:RiskFactor ; ex:bodySystem ex:Sys_Pediatric ; skos:prefLabel "Imunisasi tidak lengkap"@id ;
+    skos:altLabel "imunisasi tidak lengkap"@id , "belum imunisasi"@id , "imunisasi belum lengkap"@id .
+
+# ---------------------------------------------------------------------
+# Peringatan
+# ---------------------------------------------------------------------
+ex:Alert_ShockIndex a ex:Alert ; ex:alertText "Shock index >= 1,0: waspadai syok tersembunyi, evaluasi ulang tanda vital."@id ; dcterms:source ex:Src_ShockIndex .
+
+# ---------------------------------------------------------------------
+# Aturan (teks SPARQL di kb/rules/)
+# ---------------------------------------------------------------------
+ex:Rule_A01 a ex:Rule ; ex:ruleId "A01" ; ex:priority 1 ; ex:atDecisionPoint ex:DP_A ; ex:concludes ex:ESI_1 ;
+    ex:ifText "Ada temuan yang menuntut intervensi penyelamatan nyawa (apnea, tanpa nadi, terintubasi, distres napas berat, perdarahan masif, tidak berespons)"@id ;
+    ex:thenText "Kandidat ESI 1"@id ; dcterms:source ex:Src_ESIv4 ; dcterms:bibliographicCitation "Gilboy 2012, Gambar 2-1 (A) dan Tabel 2-1" ; ex:sparqlFile "rules/A01_penyelamatan_nyawa.rq" .
+ex:Rule_A02 a ex:Rule ; ex:ruleId "A02" ; ex:priority 1 ; ex:atDecisionPoint ex:DP_A ; ex:concludes ex:ESI_1 ;
+    ex:ifText "SpO2 < 90%"@id ; ex:thenText "Kandidat ESI 1"@id ;
+    dcterms:source ex:Src_ESIv4 ; dcterms:bibliographicCitation "Gilboy 2012, Gambar 2-1 (A): SpO2 < 90" ; ex:sparqlFile "rules/A02_spo2_kritis.rq" .
+ex:Rule_A03 a ex:Rule ; ex:ruleId "A03" ; ex:priority 1 ; ex:atDecisionPoint ex:DP_A ; ex:concludes ex:ESI_1 ;
+    ex:ifText "Kesadaran AVPU = P (hanya merespons nyeri) atau U (tidak merespons)"@id ; ex:thenText "Kandidat ESI 1"@id ;
+    dcterms:source ex:Src_ESIv4 ; dcterms:bibliographicCitation "Gilboy 2012, Gambar 2-1 (A) dan Tabel 2-2 AVPU" ; ex:sparqlFile "rules/A03_avpu.rq" .
+ex:Rule_B01 a ex:Rule ; ex:ruleId "B01" ; ex:priority 2 ; ex:atDecisionPoint ex:DP_B ; ex:concludes ex:ESI_2 ;
+    ex:ifText "Ada temuan situasi risiko tinggi"@id ; ex:thenText "Kandidat ESI 2"@id ;
+    dcterms:source ex:Src_ESIv4 ; dcterms:bibliographicCitation "Gilboy 2012, Bab 3 dan Tabel 3-1" ; ex:sparqlFile "rules/B01_risiko_tinggi.rq" .
+ex:Rule_B02 a ex:Rule ; ex:ruleId "B02" ; ex:priority 2 ; ex:atDecisionPoint ex:DP_B ; ex:concludes ex:ESI_2 ;
+    ex:ifText "Pasien baru mengalami bingung, letargi, atau disorientasi, ATAU AVPU = V"@id ; ex:thenText "Kandidat ESI 2"@id ;
+    dcterms:source ex:Src_ESIv4 ; dcterms:bibliographicCitation "Gilboy 2012, Bab 3: new onset confusion, lethargy, disorientation" ; ex:sparqlFile "rules/B02_status_mental.rq" .
+ex:Rule_B03 a ex:Rule ; ex:ruleId "B03" ; ex:priority 2 ; ex:atDecisionPoint ex:DP_B ; ex:concludes ex:ESI_2 ;
+    ex:ifText "Skala nyeri >= 7 dari 10"@id ; ex:thenText "Kandidat ESI 2 (pertimbangkan)"@id ;
+    dcterms:source ex:Src_ESIv4 ; dcterms:bibliographicCitation "Gilboy 2012, Gambar 2-1 (B): severe pain >= 7/10" ; ex:sparqlFile "rules/B03_nyeri_berat.rq" .
+ex:Rule_B04 a ex:Rule ; ex:ruleId "B04" ; ex:priority 2 ; ex:atDecisionPoint ex:DP_B ; ex:concludes ex:ESI_2 ;
+    ex:ifText "Usia 1-28 hari DAN suhu > 38,0 °C"@id ; ex:thenText "Minimal ESI 2"@id ;
+    dcterms:source ex:Src_ESIv4 ; dcterms:bibliographicCitation "Gilboy 2012, Gambar 2-1: Pediatric Fever Considerations" ; ex:sparqlFile "rules/B04_demam_neonatus.rq" .
+ex:Rule_B05 a ex:Rule ; ex:ruleId "B05" ; ex:priority 2 ; ex:atDecisionPoint ex:DP_B ; ex:concludes ex:ESI_2 ;
+    ex:ifText "Usia 1-3 bulan DAN suhu > 38,0 °C"@id ; ex:thenText "Pertimbangkan ESI 2"@id ;
+    dcterms:source ex:Src_ESIv4 ; dcterms:bibliographicCitation "Gilboy 2012, Gambar 2-1: Pediatric Fever Considerations" ; ex:sparqlFile "rules/B05_demam_bayi.rq" .
+ex:Rule_F01 a ex:Rule ; ex:ruleId "F01" ; ex:priority 2 ; ex:atDecisionPoint ex:DP_B ; ex:concludes ex:ESI_2 ;
+    ex:ifText "Dewasa dengan minimal 2 dari 3 kriteria qSOFA: RR >= 22, SBP <= 100, perubahan status mental"@id ;
+    ex:thenText "Kasus qSOFA positif (curiga sepsis), situasi risiko tinggi, kandidat ESI 2"@id ;
+    dcterms:source ex:Src_Sepsis3 ; dcterms:bibliographicCitation "Singer 2016 (Sepsis-3), qSOFA" ; ex:sparqlFile "rules/F01_qsofa.rq" .
+ex:Rule_C01 a ex:Rule ; ex:ruleId "C01" ; ex:priority 4 ; ex:atDecisionPoint ex:DP_C ;
+    ex:ifText "Bobot jenis resource >= 2 / = 1 / = 0"@id ; ex:thenText "Kandidat ESI 3 / ESI 4 / ESI 5"@id ;
+    dcterms:source ex:Src_ESIv4 ; dcterms:bibliographicCitation "Gilboy 2012, Gambar 2-1 (C) dan Tabel 4-1" ; ex:sparqlFile "rules/C01_resource.rq" .
+ex:Rule_C02 a ex:Rule ; ex:ruleId "C02" ; ex:priority 4 ; ex:atDecisionPoint ex:DP_C ; ex:concludes ex:ESI_3 ;
+    ex:ifText "Usia 3 bulan-3 tahun DAN (suhu > 39,0 °C ATAU imunisasi tidak lengkap dengan demam)"@id ; ex:thenText "Pertimbangkan ESI 3"@id ;
+    dcterms:source ex:Src_ESIv4 ; dcterms:bibliographicCitation "Gilboy 2012, Gambar 2-1: Pediatric Fever Considerations" ; ex:sparqlFile "rules/C02_demam_anak.rq" .
+ex:Rule_D01 a ex:Rule ; ex:ruleId "D01" ; ex:priority 3 ; ex:atDecisionPoint ex:DP_D ; ex:concludes ex:DangerZoneCase ;
+    ex:ifText "Nilai tanda vital melewati ambang danger zone kelompok usia pasien"@id ; ex:thenText "Kasus termasuk DangerZoneCase"@id ;
+    dcterms:source ex:Src_ESIv4 ; dcterms:bibliographicCitation "Gilboy 2012, Gambar 2-1 (D) dan Gambar 5-1" ; ex:sparqlFile "rules/D01_danger_zone.rq" .
+ex:Rule_E01 a ex:Rule ; ex:ruleId "E01" ; ex:priority 3 ; ex:atDecisionPoint ex:DP_D ; ex:concludes ex:ESI_2 ;
+    ex:ifText "DangerZoneCase DAN kandidat ESI dari resource 3, 4, atau 5"@id ; ex:thenText "Pertimbangkan naik ke ESI 2 (uptriage)"@id ;
+    dcterms:source ex:Src_ESIv4 ; dcterms:bibliographicCitation "Gilboy 2012, Gambar 2-1 (D): consider uptriage to ESI 2" ; ex:sparqlFile "rules/E01_uptriage.rq" .
+ex:Rule_G01 a ex:Rule ; ex:ruleId "G01" ; ex:priority 5 ; ex:concludes ex:Alert_ShockIndex ;
+    ex:ifText "Usia > 8 tahun DAN HR / SBP >= 1,0"@id ; ex:thenText "Tampilkan peringatan shock index (tidak mengubah ESI)"@id ;
+    dcterms:source ex:Src_ShockIndex ; dcterms:bibliographicCitation "Allgower dan Burri 1967" ; ex:sparqlFile "rules/G01_shock_index.rq" .
+ex:Rule_Z01 a ex:Rule ; ex:ruleId "Z01" ; ex:priority 9 ;
+    ex:ifText "Kasus memiliki satu atau lebih kandidat ESI"@id ; ex:thenText "ESI rekomendasi = kandidat paling akut"@id ;
+    dcterms:source ex:Src_ESIv4 ; dcterms:bibliographicCitation "Gilboy 2012, Bab 2: algoritma berurutan A, B, C, D" ; ex:sparqlFile "rules/Z01_resolusi_konflik.rq" .
+
+# ---------------------------------------------------------------------
+# Pertanyaan dialog: setiap pertanyaan tahu aturan mana yang membutuhkannya (penjelasan WHY)
+# ---------------------------------------------------------------------
+ex:Q_Age a ex:Question ; ex:askOrder 1 ; ex:slot "age" ;
+    ex:questionText "Berapa usia pasien? (contoh: 45 tahun, 2 tahun, 6 bulan, atau 20 hari)"@id ;
+    ex:neededBy ex:Rule_D01 , ex:Rule_B04 , ex:Rule_B05 , ex:Rule_C02 , ex:Rule_F01 .
+ex:Q_Complaint a ex:Question ; ex:askOrder 2 ; ex:slot "findings" ;
+    ex:questionText "Apa keluhan utama pasien dan kondisi yang terlihat? (mis. nyeri dada, sesak berat, bingung, muntah darah)"@id ;
+    ex:neededBy ex:Rule_A01 , ex:Rule_B01 , ex:Rule_B02 .
+ex:Q_AVPU a ex:Question ; ex:askOrder 3 ; ex:slot "avpu" ; ex:skipIfAcuityAtMost 1 ;
+    ex:questionText "Bagaimana tingkat kesadarannya? A = sadar penuh, V = merespons suara, P = hanya merespons nyeri, U = tidak merespons."@id ;
+    ex:neededBy ex:Rule_A03 , ex:Rule_B02 , ex:Rule_F01 .
+ex:Q_Vitals a ex:Question ; ex:askOrder 4 ; ex:slot "vitals" ; ex:skipIfAcuityAtMost 1 ;
+    ex:questionText "Berapa tanda vitalnya? Sebutkan nadi (HR), napas (RR), SpO2, tekanan darah, dan suhu yang sudah diukur."@id ;
+    ex:neededBy ex:Rule_A02 , ex:Rule_D01 , ex:Rule_F01 , ex:Rule_B04 , ex:Rule_B05 , ex:Rule_C02 , ex:Rule_G01 .
+ex:Q_Pain a ex:Question ; ex:askOrder 5 ; ex:slot "pain" ; ex:skipIfAcuityAtMost 2 ;
+    ex:questionText "Berapa skala nyerinya dari 0 sampai 10? (ketik 0 bila tidak nyeri)"@id ;
+    ex:neededBy ex:Rule_B03 .
+ex:Q_Resources a ex:Question ; ex:askOrder 6 ; ex:slot "resources" ; ex:skipIfAcuityAtMost 2 ;
+    ex:questionText "Pemeriksaan atau tindakan apa yang kemungkinan dibutuhkan? (lab, EKG/rontgen, CT/USG, infus, obat suntik/nebulisasi, konsul spesialis, jahit luka, sedasi) Ketik 'tidak ada' bila cukup diperiksa dan diberi obat oral."@id ;
+    ex:neededBy ex:Rule_C01 .
+
+# =====================================================================
+# Pengetahuan untuk pengguna awam (pasien atau keluarga)
+# =====================================================================
+
+# Perkiraan resource khas per keluhan: dipakai aturan C00 saat pasien mengisi sendiri dan tidak dapat menilai resource.
+# Disusun dari contoh pasien ESI 4 dan 5 di Gilboy 2012 Bab 4 (Tabel 4-1, 4-2); masih perlu divalidasi pakar.
+ex:Fever ex:typicalResource ex:Res_Lab .
+ex:Cough ex:typicalResource ex:Res_ECG_Xray .
+ex:VomitingDiarrhea ex:typicalResource ex:Res_Lab , ex:Res_IVFluid .
+ex:AbdominalPain ex:typicalResource ex:Res_Lab , ex:Res_CT_MRI_USG .
+ex:Headache ex:typicalResource ex:Res_IVMed .
+ex:Sprain ex:typicalResource ex:Res_ECG_Xray .
+ex:MinorLaceration ex:typicalResource ex:Res_SimpleProc .
+# SoreThroat, UrinarySymptom, MinorRash: umumnya cukup pemeriksaan fisik, tes cepat, atau obat oral (bukan resource).
+
+# Bahasa awam untuk level ESI
+ex:ESI_1 ex:layTitle "Darurat, mengancam nyawa"@id ; ex:layAdvice "Telepon 119 atau bawa ke IGD terdekat sekarang juga. Jangan menunggu."@id .
+ex:ESI_2 ex:layTitle "Gawat"@id ; ex:layAdvice "Segera ke IGD terdekat sekarang. Kondisi ini perlu diperiksa dokter secepatnya."@id .
+ex:ESI_3 ex:layTitle "Mendesak"@id ; ex:layAdvice "Datang ke IGD hari ini. Kemungkinan perlu beberapa pemeriksaan."@id .
+ex:ESI_4 ex:layTitle "Kurang mendesak"@id ; ex:layAdvice "Bisa ke klinik atau puskesmas. Segera ke IGD bila keluhan memburuk."@id .
+ex:ESI_5 ex:layTitle "Tidak mendesak"@id ; ex:layAdvice "Dapat ditangani di klinik atau puskesmas. Kembali bila keluhan memburuk."@id .
+
+# Aturan C00 dan penjelasan awam setiap aturan
+ex:Rule_C00 a ex:Rule ; ex:ruleId "C00" ; ex:priority 4 ; ex:atDecisionPoint ex:DP_C ;
+    ex:ifText "Kasus diisi sendiri oleh pasien/keluarga DAN resource belum dinilai DAN ada keluhan"@id ;
+    ex:thenText "Perkirakan resource dari ex:typicalResource setiap keluhan, lalu tandai resource sudah dinilai"@id ;
+    dcterms:source ex:Src_ESIv4 ; dcterms:bibliographicCitation "Perkiraan dari contoh kasus Gilboy 2012 Bab 4 (Tabel 4-1, 4-2)" ;
+    ex:sparqlFile "rules/C00_perkiraan_resource.rq" .
+ex:Rule_A01 ex:layText "Ada tanda yang mengancam nyawa"@id .
+ex:Rule_A02 ex:layText "Kadar oksigen dalam darah sangat rendah"@id .
+ex:Rule_A03 ex:layText "Tidak sadar, atau hanya bereaksi bila dirangsang nyeri"@id .
+ex:Rule_B01 ex:layText "Keluhan ini termasuk situasi berisiko tinggi yang perlu segera dilihat dokter"@id .
+ex:Rule_B02 ex:layText "Ada perubahan kesadaran yang baru terjadi (bingung, linglung, atau sangat mengantuk)"@id .
+ex:Rule_B03 ex:layText "Rasa nyerinya sangat berat (7 atau lebih dari 10)"@id .
+ex:Rule_B04 ex:layText "Bayi di bawah 1 bulan dengan demam di atas 38 °C"@id .
+ex:Rule_B05 ex:layText "Bayi 1-3 bulan dengan demam di atas 38 °C"@id .
+ex:Rule_F01 ex:layText "Ada tanda yang mengarah ke infeksi berat (sepsis)"@id .
+ex:Rule_C00 ex:layText "Perkiraan pemeriksaan yang biasanya dibutuhkan untuk keluhan ini"@id .
+ex:Rule_C01 ex:layText "Banyaknya jenis pemeriksaan atau tindakan yang kemungkinan dibutuhkan"@id .
+ex:Rule_C02 ex:layText "Anak 3 bulan sampai 3 tahun dengan demam tinggi atau imunisasi belum lengkap"@id .
+ex:Rule_D01 ex:layText "Nadi, napas, atau kadar oksigen di luar batas aman untuk usianya"@id .
+ex:Rule_E01 ex:layText "Karena tanda vital di luar batas aman, tingkat kegawatan dinaikkan"@id .
+ex:Rule_G01 ex:layText "Perbandingan nadi dan tekanan darah menunjukkan kemungkinan syok"@id .
+ex:Rule_Z01 ex:layText "Dari semua alasan, sistem memakai tingkat kegawatan yang paling tinggi"@id .
+ex:Res_Estimated a ex:Alert ; rdfs:label "Resource diperkirakan dari keluhan" ; ex:alertText "Resource diperkirakan otomatis dari keluhan."@id .

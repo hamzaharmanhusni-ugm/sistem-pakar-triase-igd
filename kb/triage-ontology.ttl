@@ -1,0 +1,154 @@
+@prefix ex:      <http://example.org/triage/> .
+@prefix rdf:     <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs:    <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix owl:     <http://www.w3.org/2002/07/owl#> .
+@prefix xsd:     <http://www.w3.org/2001/XMLSchema#> .
+@prefix skos:    <http://www.w3.org/2004/02/skos/core#> .
+@prefix prov:    <http://www.w3.org/ns/prov#> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+
+# =====================================================================
+# TBox Ontologi Sistem Pakar Triase IGD v2.1
+# Berpusat pada PENGETAHUAN (konsep klinis, aturan, ambang), bukan pada kunjungan.
+# Kasus pasien hanya muncul sebagai working memory satu konsultasi.
+# Isi pengetahuan ada di knowledge.ttl, bukti empiris di evidence.ttl.
+# =====================================================================
+
+<http://example.org/triage> a owl:Ontology ;
+    rdfs:label "Ontologi Sistem Pakar Triase IGD"@id ;
+    owl:versionInfo "2.1" ;
+    rdfs:comment "Versi 2.1: knowledge-centric. Konsep klinis sebagai individu berkategori, ambang dan resource sebagai data, aturan sebagai individu, penjelasan dengan PROV-O, statistik MC-MED sebagai bukti agregat."@id .
+
+# ---------------------------------------------------------------------
+# Kelas pengetahuan (tetap, berlaku untuk semua pasien)
+# ---------------------------------------------------------------------
+ex:ESILevel a owl:Class ; rdfs:label "Level Emergency Severity Index"@id .
+ex:DecisionPoint a owl:Class ; rdfs:label "Titik keputusan algoritma ESI"@id .
+ex:AgeGroup a owl:Class ; rdfs:label "Kelompok usia"@id .
+ex:VitalSign a owl:Class ; rdfs:label "Jenis tanda vital"@id .
+ex:DangerZoneThreshold a owl:Class ; rdfs:label "Ambang danger zone"@id .
+ex:BodySystem a owl:Class ; rdfs:label "Sistem organ (pengelompokan Tabel 3-1 ESI)"@id .
+
+ex:Finding a owl:Class ; rdfs:label "Temuan klinis"@id ;
+    rdfs:comment "Konsep yang dapat dikenali dari keluhan pasien; memiliki skos:prefLabel dan skos:altLabel (sinonim) untuk pengenalan bahasa alami."@id .
+ex:LifeSavingIndicator a owl:Class ; rdfs:subClassOf ex:Finding ;
+    rdfs:label "Kondisi yang menuntut intervensi penyelamatan nyawa (Decision Point A)"@id .
+ex:HighRiskSituation a owl:Class ; rdfs:subClassOf ex:Finding ;
+    rdfs:label "Situasi risiko tinggi (Decision Point B)"@id .
+ex:AlteredMentalStatus a owl:Class ; rdfs:subClassOf ex:Finding ;
+    rdfs:label "Bingung, letargi, atau disorientasi yang baru terjadi (Decision Point B)"@id .
+ex:Symptom a owl:Class ; rdfs:subClassOf ex:Finding ; rdfs:label "Gejala umum (tidak menentukan level sendiri)"@id .
+ex:RiskFactor a owl:Class ; rdfs:subClassOf ex:Finding ; rdfs:label "Faktor risiko (mis. imunisasi tidak lengkap)"@id .
+ex:LifeSavingIndicator owl:disjointWith ex:Symptom .
+ex:HighRiskSituation owl:disjointWith ex:Symptom .
+
+ex:Resource a owl:Class ; rdfs:label "Resource IGD menurut ESI"@id .
+ex:NonResource a owl:Class ; rdfs:label "Tindakan yang tidak dihitung sebagai resource"@id .
+ex:Resource owl:disjointWith ex:NonResource .
+
+ex:Rule a owl:Class ; rdfs:label "Aturan IF-THEN"@id .
+ex:Question a owl:Class ; rdfs:label "Pertanyaan dialog yang mengumpulkan fakta untuk aturan"@id .
+ex:Source a owl:Class ; rdfs:subClassOf prov:Entity ; rdfs:label "Sumber pengetahuan"@id .
+ex:EvidenceStat a owl:Class ; rdfs:subClassOf prov:Entity ; rdfs:label "Statistik agregat dari data empiris"@id .
+ex:Alert a owl:Class ; rdfs:label "Peringatan klinis (tidak mengubah level ESI)"@id .
+
+# ---------------------------------------------------------------------
+# Kelas working memory (satu konsultasi) dan hasil penalaran
+# ---------------------------------------------------------------------
+ex:TriageCase a owl:Class ; rdfs:label "Kasus triase (satu konsultasi)"@id .
+ex:DangerZoneCase a owl:Class ; rdfs:subClassOf ex:TriageCase ;
+    rdfs:label "Kasus dengan tanda vital di danger zone"@id .
+ex:QSOFAPositiveCase a owl:Class ; rdfs:subClassOf ex:TriageCase ;
+    rdfs:label "Kasus dengan qSOFA >= 2 (curiga sepsis)"@id .
+ex:Inference a owl:Class ; rdfs:subClassOf prov:Activity ;
+    rdfs:label "Satu kali penerapan aturan (jejak penjelasan)"@id .
+
+# Kompatibilitas Tugas 4: data kunjungan MC-MED lama tetap terbaca sebagai kasus
+ex:EDVisit a owl:Class ; owl:equivalentClass ex:TriageCase .
+ex:DangerZoneVisit a owl:Class ; owl:equivalentClass ex:DangerZoneCase .
+
+# ---------------------------------------------------------------------
+# Object property
+# ---------------------------------------------------------------------
+ex:candidateESI a owl:ObjectProperty ; rdfs:domain ex:TriageCase ; rdfs:range ex:ESILevel .
+ex:recommendedESI a owl:ObjectProperty , owl:FunctionalProperty ; rdfs:domain ex:TriageCase ; rdfs:range ex:ESILevel .
+ex:triageESI a owl:ObjectProperty , owl:FunctionalProperty ; rdfs:domain ex:TriageCase ; rdfs:range ex:ESILevel ;
+    rdfs:comment "ESI yang diberikan perawat (data historis Tugas 4)."@id .
+ex:moreAcuteThan a owl:ObjectProperty , owl:TransitiveProperty ; rdfs:domain ex:ESILevel ; rdfs:range ex:ESILevel .
+ex:presentsWith a owl:ObjectProperty ; rdfs:domain ex:TriageCase ; rdfs:range ex:Finding .
+ex:needsResource a owl:ObjectProperty ; rdfs:domain ex:TriageCase ; rdfs:range ex:Resource .
+ex:hasAlert a owl:ObjectProperty ; rdfs:domain ex:TriageCase ; rdfs:range ex:Alert .
+ex:bodySystem a owl:ObjectProperty ; rdfs:domain ex:Finding ; rdfs:range ex:BodySystem .
+
+ex:forAgeGroup a owl:ObjectProperty ; rdfs:range ex:AgeGroup .
+ex:onVital a owl:ObjectProperty ; rdfs:domain ex:DangerZoneThreshold ; rdfs:range ex:VitalSign .
+ex:measures a owl:ObjectProperty ; rdfs:range ex:VitalSign ;
+    rdfs:comment "Menghubungkan property data (mis. ex:heartRate) dengan jenis tanda vitalnya."@id .
+ex:nextIfNo a owl:ObjectProperty ; rdfs:domain ex:DecisionPoint ; rdfs:range ex:DecisionPoint .
+ex:conclusionIfYes a owl:ObjectProperty ; rdfs:domain ex:DecisionPoint ; rdfs:range ex:ESILevel .
+ex:atDecisionPoint a owl:ObjectProperty ; rdfs:range ex:DecisionPoint .
+ex:concludes a owl:ObjectProperty ; rdfs:domain ex:Rule .
+ex:definedBy a owl:ObjectProperty ; rdfs:range ex:Rule .
+ex:neededBy a owl:ObjectProperty ; rdfs:domain ex:Question ; rdfs:range ex:Rule .
+ex:aboutLevel a owl:ObjectProperty ; rdfs:domain ex:EvidenceStat ; rdfs:range ex:ESILevel .
+ex:aboutRule a owl:ObjectProperty ; rdfs:domain ex:EvidenceStat ; rdfs:range ex:Rule .
+
+ex:usedRule a owl:ObjectProperty ; rdfs:domain ex:Inference ; rdfs:range ex:Rule .
+ex:aboutCase a owl:ObjectProperty ; rdfs:domain ex:Inference ; rdfs:range ex:TriageCase .
+ex:concluded a owl:ObjectProperty ; rdfs:domain ex:Inference .
+ex:dependsOn a owl:ObjectProperty , owl:TransitiveProperty ; rdfs:domain ex:Inference ; rdfs:range ex:Inference .
+
+# ---------------------------------------------------------------------
+# Datatype property: fakta kasus
+# ---------------------------------------------------------------------
+ex:vitalValue a owl:DatatypeProperty ; rdfs:domain ex:TriageCase ; rdfs:range xsd:decimal .
+ex:heartRate a owl:DatatypeProperty ; rdfs:subPropertyOf ex:vitalValue ; ex:measures ex:HR .
+ex:respRate a owl:DatatypeProperty ; rdfs:subPropertyOf ex:vitalValue ; ex:measures ex:RR .
+ex:o2Sat a owl:DatatypeProperty ; rdfs:subPropertyOf ex:vitalValue ; ex:measures ex:SpO2 .
+ex:sbp a owl:DatatypeProperty ; rdfs:subPropertyOf ex:vitalValue ; ex:measures ex:SBP .
+ex:temperatureC a owl:DatatypeProperty ; rdfs:subPropertyOf ex:vitalValue ; ex:measures ex:Temp .
+ex:age a owl:DatatypeProperty ; rdfs:domain ex:TriageCase ; rdfs:comment "Usia dalam tahun."@id .
+ex:ageMonths a owl:DatatypeProperty ; rdfs:domain ex:TriageCase ; rdfs:comment "Usia dalam bulan; diutamakan untuk anak."@id .
+ex:avpu a owl:DatatypeProperty ; rdfs:domain ex:TriageCase ; rdfs:comment "Tingkat kesadaran AVPU: A, V, P, atau U."@id .
+ex:painScore a owl:DatatypeProperty ; rdfs:domain ex:TriageCase ; rdfs:range xsd:integer .
+ex:resourcesAssessed a owl:DatatypeProperty ; rdfs:domain ex:TriageCase ; rdfs:range xsd:boolean ;
+    rdfs:comment "true bila resource sudah diperkirakan; membedakan 'nol resource' dari 'belum dinilai'."@id .
+
+# ---------------------------------------------------------------------
+# Datatype property: pengetahuan, aturan, dialog, bukti
+# ---------------------------------------------------------------------
+ex:levelNumber a owl:DatatypeProperty ; rdfs:domain ex:ESILevel ; rdfs:range xsd:integer .
+ex:minMonths a owl:DatatypeProperty ; rdfs:domain ex:AgeGroup ; rdfs:comment "Batas bawah inklusif (bulan)."@id .
+ex:maxMonths a owl:DatatypeProperty ; rdfs:domain ex:AgeGroup ; rdfs:comment "Batas atas eksklusif (bulan)."@id .
+ex:comparator a owl:DatatypeProperty ; rdfs:domain ex:DangerZoneThreshold ; rdfs:comment "\"gt\" atau \"lt\"."@id .
+ex:limit a owl:DatatypeProperty ; rdfs:domain ex:DangerZoneThreshold ; rdfs:range xsd:decimal .
+ex:resourceWeight a owl:DatatypeProperty ; rdfs:domain ex:Resource ; rdfs:range xsd:integer .
+ex:ruleId a owl:DatatypeProperty ; rdfs:domain ex:Rule .
+ex:priority a owl:DatatypeProperty ; rdfs:domain ex:Rule ; rdfs:range xsd:integer ; rdfs:comment "Makin kecil makin didahulukan."@id .
+ex:ifText a owl:DatatypeProperty ; rdfs:domain ex:Rule .
+ex:thenText a owl:DatatypeProperty ; rdfs:domain ex:Rule .
+ex:sparqlFile a owl:DatatypeProperty ; rdfs:domain ex:Rule .
+ex:question a owl:DatatypeProperty ; rdfs:domain ex:DecisionPoint .
+ex:questionText a owl:DatatypeProperty ; rdfs:domain ex:Question .
+ex:askOrder a owl:DatatypeProperty ; rdfs:domain ex:Question ; rdfs:range xsd:integer .
+ex:slot a owl:DatatypeProperty ; rdfs:domain ex:Question ; rdfs:comment "Nama slot fakta yang diisi jawaban."@id .
+ex:skipIfAcuityAtMost a owl:DatatypeProperty ; rdfs:domain ex:Question ; rdfs:range xsd:integer ;
+    rdfs:comment "Lewati pertanyaan bila sudah ada kandidat ESI dengan level <= nilai ini (algoritma ESI berhenti di A/B)."@id .
+ex:reason a owl:DatatypeProperty ; rdfs:domain ex:Inference .
+ex:alertText a owl:DatatypeProperty ; rdfs:domain ex:Alert .
+ex:visits a owl:DatatypeProperty ; rdfs:domain ex:EvidenceStat ; rdfs:range xsd:integer .
+ex:admitRate a owl:DatatypeProperty ; rdfs:domain ex:EvidenceStat ; rdfs:range xsd:decimal ;
+    rdfs:comment "Proporsi rawat inap atau ICU."@id .
+ex:criticalRate a owl:DatatypeProperty ; rdfs:domain ex:EvidenceStat ; rdfs:range xsd:decimal ;
+    rdfs:comment "Proporsi luaran kritis (ICU atau meninggal di rumah sakit)."@id .
+
+# ---------------------------------------------------------------------
+# Tambahan untuk pengguna awam
+# ---------------------------------------------------------------------
+ex:reportedByLayperson a owl:DatatypeProperty ; rdfs:domain ex:TriageCase ; rdfs:range xsd:boolean ;
+    rdfs:comment "true bila data diisi orang awam (pasien sendiri atau keluarga), bukan perawat; resource lalu diperkirakan aturan C00."@id .
+ex:typicalResource a owl:ObjectProperty ; rdfs:domain ex:Finding ; rdfs:range ex:Resource ;
+    rdfs:comment "Resource yang biasanya dibutuhkan untuk temuan ini."@id .
+ex:layText a owl:DatatypeProperty ; rdfs:domain ex:Rule ; rdfs:comment "Penjelasan aturan dalam bahasa awam."@id .
+ex:layTitle a owl:DatatypeProperty ; rdfs:domain ex:ESILevel .
+ex:layAdvice a owl:DatatypeProperty ; rdfs:domain ex:ESILevel ; rdfs:comment "Saran tindakan untuk pasien/keluarga."@id .

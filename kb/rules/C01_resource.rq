@@ -1,0 +1,23 @@
+# C01 (Gilboy 2012, Gambar 2-1 C dan Tabel 4-1): IF bobot jenis resource >= 2 THEN ESI 3; = 1 THEN ESI 4; = 0 (sudah dinilai) THEN ESI 5
+PREFIX ex: <http://example.org/triage/>
+PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX prov: <http://www.w3.org/ns/prov#>
+INSERT {
+  ?case ex:candidateESI ?esi .
+  ?inf a ex:Inference ; ex:usedRule ex:Rule_C01 ; ex:aboutCase ?case ; ex:concluded ?esi ;
+       prov:used ?r ; ex:reason ?why .
+}
+WHERE {
+  ?case a ex:TriageCase ; ex:resourcesAssessed true .
+  OPTIONAL {
+    SELECT ?case (SUM(?w) AS ?total) (GROUP_CONCAT(?rl; separator=", ") AS ?daftar)
+    WHERE { ?case ex:needsResource ?x . ?x ex:resourceWeight ?w ; skos:prefLabel ?rl0 . BIND(STR(?rl0) AS ?rl) }
+    GROUP BY ?case
+  }
+  OPTIONAL { ?case ex:needsResource ?r . }
+  BIND(COALESCE(?total, 0) AS ?n)
+  BIND(IF(?n >= 2, ex:ESI_3, IF(?n = 1, ex:ESI_4, ex:ESI_5)) AS ?esi)
+  BIND(IRI(CONCAT(STR(?case), "_inf_C01")) AS ?inf)
+  BIND(CONCAT("Bobot resource = ", STR(?n), IF(BOUND(?daftar), CONCAT(" (", ?daftar, ")"), " (tidak ada resource)")) AS ?why)
+}

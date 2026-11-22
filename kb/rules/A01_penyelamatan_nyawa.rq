@@ -1,0 +1,15 @@
+# A01 (Gilboy 2012, Gambar 2-1 A dan Tabel 2-1): IF temuan butuh intervensi penyelamatan nyawa THEN kandidat ESI 1
+PREFIX ex: <http://example.org/triage/>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
+PREFIX prov: <http://www.w3.org/ns/prov#>
+INSERT {
+  ?case ex:candidateESI ex:ESI_1 .
+  ?inf a ex:Inference ; ex:usedRule ex:Rule_A01 ; ex:aboutCase ?case ; ex:concluded ex:ESI_1 ; prov:used ?f ; ex:reason ?why .
+}
+WHERE {
+  ?case a ex:TriageCase ; ex:presentsWith ?f .
+  ?f a ex:LifeSavingIndicator ; skos:prefLabel ?l .
+  BIND(IRI(CONCAT(STR(?case), "_inf_A01_", STRAFTER(STR(?f), "triage/"))) AS ?inf)
+  BIND(CONCAT("Temuan yang menuntut intervensi penyelamatan nyawa: ", STR(?l)) AS ?why)
+}

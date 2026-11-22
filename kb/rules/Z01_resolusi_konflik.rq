@@ -1,0 +1,16 @@
+# Z01 (Gilboy 2012, Bab 2; resolusi konflik, dijalankan setelah titik tetap): ESI rekomendasi = kandidat paling akut
+PREFIX ex: <http://example.org/triage/>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX prov: <http://www.w3.org/ns/prov#>
+INSERT {
+  ?case ex:recommendedESI ?best .
+  ?inf a ex:Inference ; ex:usedRule ex:Rule_Z01 ; ex:aboutCase ?case ; ex:concluded ?best ;
+       ex:dependsOn ?src ; ex:reason ?why .
+}
+WHERE {
+  { SELECT ?case (MIN(?n) AS ?min) WHERE { ?case ex:candidateESI/ex:levelNumber ?n } GROUP BY ?case }
+  ?best a ex:ESILevel ; ex:levelNumber ?min .
+  ?src a ex:Inference ; ex:aboutCase ?case ; ex:concluded ?best .
+  BIND(IRI(CONCAT(STR(?case), "_inf_Z01")) AS ?inf)
+  BIND(CONCAT("Kandidat paling akut adalah ESI ", STR(?min)) AS ?why)
+}

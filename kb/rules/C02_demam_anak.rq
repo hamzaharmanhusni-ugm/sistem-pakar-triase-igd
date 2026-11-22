@@ -1,0 +1,23 @@
+# C02 (Gilboy 2012, Gambar 2-1, Pediatric Fever): IF usia 3 bulan-3 tahun DAN (suhu > 39,0 ATAU demam dengan imunisasi tidak lengkap) THEN pertimbangkan ESI 3
+PREFIX ex: <http://example.org/triage/>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
+PREFIX prov: <http://www.w3.org/ns/prov#>
+INSERT {
+  ?case ex:candidateESI ex:ESI_3 .
+  ?inf a ex:Inference ; ex:usedRule ex:Rule_C02 ; ex:aboutCase ?case ; ex:concluded ex:ESI_3 ; ex:reason ?why .
+}
+WHERE {
+  ?case a ex:TriageCase .
+  OPTIONAL { ?case ex:ageMonths ?m } OPTIONAL { ?case ex:age ?y }
+  BIND(COALESCE(?m, ?y * 12) AS ?months)
+  FILTER(?months >= 3 && ?months < 36)
+  OPTIONAL { ?case ex:temperatureC ?t }
+  BIND(BOUND(?t) && ?t > 39.0 AS ?highFever)
+  BIND(EXISTS { ?case ex:presentsWith ex:IncompleteImmunization } &&
+       (EXISTS { ?case ex:presentsWith ex:Fever } || (BOUND(?t) && ?t > 38.0)) AS ?immun)
+  FILTER(?highFever || ?immun)
+  BIND(IRI(CONCAT(STR(?case), "_inf_C02")) AS ?inf)
+  BIND(IF(?highFever, CONCAT("Anak 3 bulan-3 tahun dengan suhu ", STR(?t), " °C > 39,0 °C"),
+          "Anak 3 bulan-3 tahun demam dengan imunisasi tidak lengkap") AS ?why)
+}

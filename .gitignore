@@ -1,0 +1,25 @@
+# lingkungan dan cache
+.venv/
+__pycache__/
+.pytest_cache/
+node_modules/
+deck/_render*/
+deck/_tmp.pptx
+
+# kerja lokal alat bantu
+.playwright-mcp/
+.impeccable/review/
+.impeccable/build/
+.impeccable/mocks/
+.claude/launch.json
+.claude/settings.local.json
+
+# rahasia
+.env
+*.env
+
+# data berlisensi (PhysioNet credentialed): jangan pernah di-commit
+data/private/
+**/triagekg.ttl
+**/triagekg.trig
+**/visits.csv

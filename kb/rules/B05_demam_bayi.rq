@@ -1,0 +1,17 @@
+# B05 (Gilboy 2012, Gambar 2-1, Pediatric Fever): IF usia 1-3 bulan DAN suhu > 38,0 THEN pertimbangkan ESI 2
+PREFIX ex: <http://example.org/triage/>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
+PREFIX prov: <http://www.w3.org/ns/prov#>
+INSERT {
+  ?case ex:candidateESI ex:ESI_2 .
+  ?inf a ex:Inference ; ex:usedRule ex:Rule_B05 ; ex:aboutCase ?case ; ex:concluded ex:ESI_2 ; ex:reason ?why .
+}
+WHERE {
+  ?case a ex:TriageCase ; ex:temperatureC ?t . FILTER(?t > 38.0)
+  OPTIONAL { ?case ex:ageMonths ?m } OPTIONAL { ?case ex:age ?y }
+  BIND(COALESCE(?m, ?y * 12) AS ?months)
+  FILTER(?months >= 1 && ?months < 3)
+  BIND(IRI(CONCAT(STR(?case), "_inf_B05")) AS ?inf)
+  BIND(CONCAT("Bayi 1-3 bulan dengan suhu ", STR(?t), " °C > 38,0 °C") AS ?why)
+}

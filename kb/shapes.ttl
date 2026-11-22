@@ -1,0 +1,16 @@
+@prefix ex:  <http://example.org/triage/> .
+@prefix sh:  <http://www.w3.org/ns/shacl#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+# SHACL: syarat minimal data kasus sebelum mesin inferensi dijalankan.
+ex:TriageCaseShape a sh:NodeShape ;
+    sh:targetClass ex:TriageCase ;
+    sh:or ( [ sh:path ex:age ; sh:minCount 1 ] [ sh:path ex:ageMonths ; sh:minCount 1 ] ) ;
+    sh:message "Usia wajib diisi (ex:age dalam tahun atau ex:ageMonths dalam bulan)." ;
+    sh:property
+        [ sh:path ex:heartRate ; sh:maxCount 1 ; sh:minInclusive 0 ; sh:maxInclusive 300 ; sh:message "HR di luar 0-300." ] ,
+        [ sh:path ex:respRate ; sh:maxCount 1 ; sh:minInclusive 0 ; sh:maxInclusive 100 ; sh:message "RR di luar 0-100." ] ,
+        [ sh:path ex:o2Sat ; sh:maxCount 1 ; sh:minInclusive 0 ; sh:maxInclusive 100 ; sh:message "SpO2 di luar 0-100." ] ,
+        [ sh:path ex:painScore ; sh:maxCount 1 ; sh:minInclusive 0 ; sh:maxInclusive 10 ; sh:message "Skala nyeri 0-10." ] ,
+        [ sh:path ex:needsResource ; sh:class ex:Resource ; sh:message "needsResource harus menunjuk individu ex:Resource." ] ,
+        [ sh:path ex:presentsWith ; sh:class ex:Finding ; sh:message "presentsWith harus menunjuk individu ex:Finding." ] .

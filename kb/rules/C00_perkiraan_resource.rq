@@ -1,0 +1,19 @@
+# C00 (perkiraan dari contoh kasus Gilboy 2012 Bab 4): IF diisi pasien/keluarga DAN resource belum dinilai DAN ada keluhan
+#     THEN perkirakan resource dari ex:typicalResource keluhan, tandai resource sudah dinilai (memicu C01 pada siklus berikutnya)
+PREFIX ex: <http://example.org/triage/>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
+PREFIX prov: <http://www.w3.org/ns/prov#>
+INSERT {
+  ?case ex:resourcesAssessed true ; ex:needsResource ?r .
+  ?inf a ex:Inference ; ex:usedRule ex:Rule_C00 ; ex:aboutCase ?case ; ex:concluded ex:Res_Estimated ; prov:used ?f ; ex:reason ?why .
+}
+WHERE {
+  ?case a ex:TriageCase ; ex:reportedByLayperson true .
+  FILTER NOT EXISTS { ?case ex:resourcesAssessed true }
+  { SELECT ?case (GROUP_CONCAT(DISTINCT STR(?l0); separator=", ") AS ?daftar)
+    WHERE { ?case ex:presentsWith ?f0 . OPTIONAL { ?f0 ex:typicalResource/skos:prefLabel ?l0 } } GROUP BY ?case }
+  OPTIONAL { ?case ex:presentsWith ?f . ?f ex:typicalResource ?r }
+  BIND(IRI(CONCAT(STR(?case), "_inf_C00")) AS ?inf)
+  BIND(CONCAT("Perkiraan resource dari keluhan: ", IF(?daftar = "", "tidak ada (cukup pemeriksaan fisik/obat oral)", ?daftar)) AS ?why)
+}

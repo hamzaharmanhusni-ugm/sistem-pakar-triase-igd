@@ -1,0 +1,15 @@
+# B01 (Gilboy 2012, Bab 3 dan Tabel 3-1): IF temuan situasi risiko tinggi THEN kandidat ESI 2
+PREFIX ex: <http://example.org/triage/>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
+PREFIX prov: <http://www.w3.org/ns/prov#>
+INSERT {
+  ?case ex:candidateESI ex:ESI_2 .
+  ?inf a ex:Inference ; ex:usedRule ex:Rule_B01 ; ex:aboutCase ?case ; ex:concluded ex:ESI_2 ; prov:used ?f ; ex:reason ?why .
+}
+WHERE {
+  ?case a ex:TriageCase ; ex:presentsWith ?f .
+  ?f a ex:HighRiskSituation ; skos:prefLabel ?l ; ex:bodySystem/rdfs:label ?sys .
+  BIND(IRI(CONCAT(STR(?case), "_inf_B01_", STRAFTER(STR(?f), "triage/"))) AS ?inf)
+  BIND(CONCAT("Situasi risiko tinggi (", ?sys, "): ", STR(?l)) AS ?why)
+}

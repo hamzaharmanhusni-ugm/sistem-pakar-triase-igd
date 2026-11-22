@@ -1,0 +1,22 @@
+@prefix ex:      <http://example.org/triage/> .
+@prefix rdfs:    <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd:     <http://www.w3.org/2001/XMLSchema#> .
+@prefix prov:    <http://www.w3.org/ns/prov#> .
+
+# =====================================================================
+# Bukti empiris agregat dari MC-MED 1.0.0 (118.385 kunjungan IGD dewasa, usia 18-90 tahun).
+# Hanya angka agregat; tidak ada data tingkat pasien. Dihasilkan oleh kb/build_evidence.py.
+# Luaran kritis = masuk ICU dari IGD atau meninggal di rumah sakit (Xie dkk. 2022).
+# =====================================================================
+
+ex:Ev_ESI_1 a ex:EvidenceStat ; ex:aboutLevel ex:ESI_1 ; ex:visits 1066  ; ex:admitRate 0.8537 ; ex:criticalRate 0.5807 ; prov:wasDerivedFrom ex:Src_MCMED .
+ex:Ev_ESI_2 a ex:EvidenceStat ; ex:aboutLevel ex:ESI_2 ; ex:visits 27880 ; ex:admitRate 0.4911 ; ex:criticalRate 0.0705 ; prov:wasDerivedFrom ex:Src_MCMED .
+ex:Ev_ESI_3 a ex:EvidenceStat ; ex:aboutLevel ex:ESI_3 ; ex:visits 77259 ; ex:admitRate 0.2232 ; ex:criticalRate 0.0084 ; prov:wasDerivedFrom ex:Src_MCMED .
+ex:Ev_ESI_4 a ex:EvidenceStat ; ex:aboutLevel ex:ESI_4 ; ex:visits 10973 ; ex:admitRate 0.0209 ; ex:criticalRate 0.0012 ; prov:wasDerivedFrom ex:Src_MCMED .
+ex:Ev_ESI_5 a ex:EvidenceStat ; ex:aboutLevel ex:ESI_5 ; ex:visits 680   ; ex:admitRate 0.0132 ; ex:criticalRate 0.0000 ; prov:wasDerivedFrom ex:Src_MCMED .
+
+# Validasi aturan D01 pada kunjungan ESI 3-5 (ambang dewasa: HR > 100, RR > 20, SpO2 < 92)
+ex:Ev_D01_yes a ex:EvidenceStat ; ex:aboutRule ex:Rule_D01 ; rdfs:label "ESI 3-5 dengan danger zone" ;
+    ex:visits 17239 ; ex:admitRate 0.2983 ; ex:criticalRate 0.0134 ; prov:wasDerivedFrom ex:Src_MCMED .
+ex:Ev_D01_no a ex:EvidenceStat ; ex:aboutRule ex:Rule_D01 ; rdfs:label "ESI 3-5 tanpa danger zone" ;
+    ex:visits 71673 ; ex:admitRate 0.1721 ; ex:criticalRate 0.0060 ; prov:wasDerivedFrom ex:Src_MCMED .
