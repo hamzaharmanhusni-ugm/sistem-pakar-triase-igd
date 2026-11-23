@@ -1,0 +1,16 @@
+# D01: IF nadi, napas, atau SpO2 melewati ambang danger zone THEN kasus adalah DangerZoneCase
+# Satu aturan untuk semua tanda vital: ambang, arah perbandingan, dan jenis vital dibaca dari data.
+PREFIX ex: <http://example.org/triage-vital/>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX prov: <http://www.w3.org/ns/prov#>
+INSERT {
+  ?case a ex:DangerZoneCase .
+  ?inf a ex:Inference ; ex:usedRule ex:Rule_D01 ; ex:aboutCase ?case ; ex:concluded ex:DangerZoneCase ; prov:used ?t ; ex:reason ?why .
+}
+WHERE {
+  ?case a ex:TriageCase ; ?p ?v . ?p ex:measures ?vs .
+  ?t ex:usedBy ex:Rule_D01 ; ex:onVital ?vs ; ex:comparator ?c ; ex:limit ?lim ; rdfs:label ?l .
+  FILTER((?c = "gt" && ?v > ?lim) || (?c = "lt" && ?v < ?lim))
+  BIND(IRI(CONCAT(STR(?case), "_inf_D01_", STRAFTER(STR(?t), "triage-vital/"))) AS ?inf)
+  BIND(CONCAT("Danger zone: nilai ", STR(?v), " memenuhi ", ?l) AS ?why)
+}

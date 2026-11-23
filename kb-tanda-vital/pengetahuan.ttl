@@ -1,0 +1,79 @@
+@prefix ex:      <http://example.org/triage-vital/> .
+@prefix rdfs:    <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+
+# =====================================================================
+# ABox versi ringkas: hanya 4 pola. Setiap pola cukup dijelaskan dengan satu contoh.
+#   Pola 1 Sumber   | Pola 2 Level ESI   | Pola 3 Ambang (pengetahuan sebagai data)   | Pola 4 Aturan
+# =====================================================================
+
+# ---------------------------------------------------------------------
+# Pola 1. Sumber pengetahuan
+# ---------------------------------------------------------------------
+ex:Src_ESIv4 a ex:Source ;
+    rdfs:label "Gilboy N, dkk. Emergency Severity Index (ESI) Version 4, Implementation Handbook 2012. AHRQ 12-0014." .
+ex:Src_Sepsis3 a ex:Source ;
+    rdfs:label "Singer M, dkk. Sepsis-3. JAMA 2016;315(8):801-810." .
+ex:Src_ShockIndex a ex:Source ;
+    rdfs:label "Allgower M, Burri C. Schockindex. Dtsch Med Wochenschr 1967;92:1947-1950." .
+
+# ---------------------------------------------------------------------
+# Pola 2. Level ESI dan urutannya (hanya 3 langkah ditulis; sisanya disimpulkan reasoner)
+# ESI 3, 4, dan 5 dibedakan oleh jumlah resource (Decision Point C), di luar cakupan versi ini,
+# sehingga digabung menjadi satu level.
+# ---------------------------------------------------------------------
+ex:ESI_1 a ex:ESILevel ; ex:levelNumber 1 ; rdfs:label "ESI 1: Resusitasi" ; ex:moreAcuteThan ex:ESI_2 .
+ex:ESI_2 a ex:ESILevel ; ex:levelNumber 2 ; rdfs:label "ESI 2: Gawat" ; ex:moreAcuteThan ex:ESI_3to5 .
+ex:ESI_3to5 a ex:ESILevel ; ex:levelNumber 3 ;
+    rdfs:label "ESI 3-5: tanda vital aman, tentukan dari jumlah resource" .
+
+# Jenis tanda vital
+ex:HR a ex:VitalSign ; rdfs:label "Nadi (x/menit)" .
+ex:RR a ex:VitalSign ; rdfs:label "Napas (x/menit)" .
+ex:SpO2 a ex:VitalSign ; rdfs:label "SpO2 (%)" .
+ex:SBP a ex:VitalSign ; rdfs:label "TD sistolik (mmHg)" .
+
+# ---------------------------------------------------------------------
+# Pola 3. Ambang batas sebagai DATA (bukan ditulis di program)
+# Mengubah ambang cukup mengubah satu angka di sini; aturan tidak perlu disentuh.
+# ---------------------------------------------------------------------
+ex:Limit_SpO2_Critical a ex:Threshold ; ex:onVital ex:SpO2 ; ex:comparator "lt" ; ex:limit 90.0 ; ex:usedBy ex:Rule_A02 ;
+    rdfs:label "SpO2 < 90" .
+ex:Limit_HR_DZ a ex:Threshold ; ex:onVital ex:HR ; ex:comparator "gt" ; ex:limit 100.0 ; ex:usedBy ex:Rule_D01 ;
+    rdfs:label "Nadi > 100" .
+ex:Limit_RR_DZ a ex:Threshold ; ex:onVital ex:RR ; ex:comparator "gt" ; ex:limit 20.0 ; ex:usedBy ex:Rule_D01 ;
+    rdfs:label "Napas > 20" .
+ex:Limit_SpO2_DZ a ex:Threshold ; ex:onVital ex:SpO2 ; ex:comparator "lt" ; ex:limit 92.0 ; ex:usedBy ex:Rule_D01 ;
+    rdfs:label "SpO2 < 92" .
+ex:Limit_RR_qSOFA a ex:Threshold ; ex:onVital ex:RR ; ex:comparator "ge" ; ex:limit 22.0 ; ex:usedBy ex:Rule_F01 ;
+    rdfs:label "Napas >= 22" .
+ex:Limit_SBP_qSOFA a ex:Threshold ; ex:onVital ex:SBP ; ex:comparator "le" ; ex:limit 100.0 ; ex:usedBy ex:Rule_F01 ;
+    rdfs:label "TD sistolik <= 100" .
+ex:Limit_ShockIndex a ex:Threshold ; ex:comparator "ge" ; ex:limit 1.0 ; ex:usedBy ex:Rule_G01 ;
+    rdfs:label "Nadi / TD sistolik >= 1,0" .
+
+ex:Alert_ShockIndex a ex:Alert ; ex:alertText "Shock index >= 1,0: waspadai syok tersembunyi, evaluasi ulang tanda vital."@id .
+
+# ---------------------------------------------------------------------
+# Pola 4. Aturan IF-THEN (isi SPARQL di folder aturan/)
+# ---------------------------------------------------------------------
+ex:Rule_A02 a ex:Rule ; ex:ruleId "A02" ; ex:priority 1 ;
+    ex:ifText "SpO2 di bawah ambang kritis (90%)"@id ; ex:thenText "Kandidat ESI 1"@id ;
+    dcterms:source ex:Src_ESIv4 ; dcterms:bibliographicCitation "Gilboy 2012, Gambar 2-1 (A)" ; ex:sparqlFile "aturan/A02_spo2_kritis.rq" .
+ex:Rule_D01 a ex:Rule ; ex:ruleId "D01" ; ex:priority 3 ;
+    ex:ifText "Nadi, napas, atau SpO2 melewati ambang danger zone dewasa"@id ; ex:thenText "Kasus menjadi DangerZoneCase"@id ;
+    dcterms:source ex:Src_ESIv4 ; dcterms:bibliographicCitation "Gilboy 2012, Gambar 2-1 (D)" ; ex:sparqlFile "aturan/D01_danger_zone.rq" .
+ex:Rule_F01 a ex:Rule ; ex:ruleId "F01" ; ex:priority 2 ;
+    ex:ifText "Minimal 2 dari 3 kriteria qSOFA: napas >= 22, TD sistolik <= 100, kesadaran bukan A"@id ;
+    ex:thenText "Kasus menjadi QSOFAPositiveCase, kandidat ESI 2"@id ;
+    dcterms:source ex:Src_Sepsis3 ; dcterms:bibliographicCitation "Singer 2016 (Sepsis-3), qSOFA" ; ex:sparqlFile "aturan/F01_qsofa.rq" .
+ex:Rule_E01 a ex:Rule ; ex:ruleId "E01" ; ex:priority 3 ;
+    ex:ifText "Kasus termasuk DangerZoneCase"@id ; ex:thenText "Kandidat ESI 2 (uptriage)"@id ;
+    dcterms:source ex:Src_ESIv4 ; dcterms:bibliographicCitation "Gilboy 2012, Gambar 2-1 (D): consider uptriage to ESI 2" ; ex:sparqlFile "aturan/E01_uptriage.rq" .
+ex:Rule_G01 a ex:Rule ; ex:ruleId "G01" ; ex:priority 5 ;
+    ex:ifText "Nadi dibagi TD sistolik >= 1,0"@id ; ex:thenText "Peringatan shock index (tidak mengubah ESI)"@id ;
+    dcterms:source ex:Src_ShockIndex ; dcterms:bibliographicCitation "Allgower dan Burri 1967" ; ex:sparqlFile "aturan/G01_shock_index.rq" .
+ex:Rule_Z01 a ex:Rule ; ex:ruleId "Z01" ; ex:priority 9 ;
+    ex:ifText "Setelah semua aturan selesai: ada kandidat ESI, atau tidak ada sama sekali"@id ;
+    ex:thenText "Rekomendasi = kandidat paling akut; tanpa kandidat = ESI 3-5"@id ;
+    dcterms:source ex:Src_ESIv4 ; dcterms:bibliographicCitation "Gilboy 2012, Bab 2: algoritma berurutan" ; ex:sparqlFile "aturan/Z01_resolusi_konflik.rq" .

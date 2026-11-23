@@ -1,0 +1,21 @@
+# Z01: dijalankan sekali setelah titik tetap (tidak ada fakta baru lagi).
+# (1) Ada kandidat: rekomendasi = kandidat paling akut (levelNumber terkecil).
+# (2) Tidak ada kandidat: tanda vital aman, rekomendasi = ESI 3-5 (ditentukan jumlah resource, di luar cakupan).
+PREFIX ex: <http://example.org/triage-vital/>
+INSERT {
+  ?case ex:recommendedESI ?best .
+  ?inf a ex:Inference ; ex:usedRule ex:Rule_Z01 ; ex:aboutCase ?case ; ex:concluded ?best ; ex:dependsOn ?src ; ex:reason ?why .
+}
+WHERE {
+  {
+    { SELECT ?case (MIN(?n) AS ?min) WHERE { ?case ex:candidateESI/ex:levelNumber ?n } GROUP BY ?case }
+    ?best ex:levelNumber ?min .
+    ?src ex:aboutCase ?case ; ex:concluded ?best .
+    BIND(CONCAT("Kandidat paling akut: ESI ", STR(?min)) AS ?why)
+  } UNION {
+    ?case a ex:TriageCase . FILTER NOT EXISTS { ?case ex:candidateESI ?any }
+    BIND(ex:ESI_3to5 AS ?best)
+    BIND("Tidak ada tanda vital yang melewati ambang: ESI 3-5, tentukan dari jumlah resource" AS ?why)
+  }
+  BIND(IRI(CONCAT(STR(?case), "_inf_Z01")) AS ?inf)
+}

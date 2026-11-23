@@ -1,0 +1,70 @@
+@prefix ex:   <http://example.org/triage-vital/> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix owl:  <http://www.w3.org/2002/07/owl#> .
+@prefix xsd:  <http://www.w3.org/2001/XMLSchema#> .
+@prefix prov: <http://www.w3.org/ns/prov#> .
+
+# =====================================================================
+# TBox versi ringkas: triase pasien DEWASA berdasarkan TANDA VITAL saja
+# (Decision Point D algoritma ESI, ditambah aturan yang murni berbasis angka).
+# TBox = kamus istilah: jenis benda (kelas) dan jenis hubungan (property).
+# =====================================================================
+
+<http://example.org/triage-vital> a owl:Ontology ;
+    rdfs:label "Ontologi triase tanda vital (versi ringkas)"@id ;
+    owl:versionInfo "1.0" .
+
+# ---------------------------------------------------------------------
+# Kelas
+# ---------------------------------------------------------------------
+ex:TriageCase a owl:Class ; rdfs:label "Kasus triase (satu pasien dewasa)"@id .
+ex:DangerZoneCase a owl:Class ; rdfs:subClassOf ex:TriageCase ;
+    rdfs:label "Kasus dengan tanda vital di danger zone"@id .
+ex:QSOFAPositiveCase a owl:Class ; rdfs:subClassOf ex:TriageCase ;
+    rdfs:label "Kasus dengan qSOFA >= 2 (curiga sepsis)"@id .
+
+ex:ESILevel a owl:Class ; rdfs:label "Level ESI"@id .
+ex:VitalSign a owl:Class ; rdfs:label "Jenis tanda vital"@id .
+ex:Threshold a owl:Class ; rdfs:label "Ambang batas tanda vital"@id .
+ex:Alert a owl:Class ; rdfs:label "Peringatan (tidak mengubah level ESI)"@id .
+ex:Rule a owl:Class ; rdfs:label "Aturan IF-THEN"@id .
+ex:Source a owl:Class ; rdfs:subClassOf prov:Entity ; rdfs:label "Sumber pengetahuan"@id .
+ex:Inference a owl:Class ; rdfs:subClassOf prov:Activity ; rdfs:label "Satu kali aturan diterapkan (jejak penjelasan)"@id .
+
+# ---------------------------------------------------------------------
+# Hubungan antarbenda (object property)
+# ---------------------------------------------------------------------
+ex:moreAcuteThan a owl:ObjectProperty , owl:TransitiveProperty ; rdfs:domain ex:ESILevel ; rdfs:range ex:ESILevel ;
+    rdfs:comment "Transitif: bila ESI 1 > ESI 2 dan ESI 2 > ESI 3, reasoner menyimpulkan ESI 1 > ESI 3."@id .
+ex:candidateESI a owl:ObjectProperty ; rdfs:domain ex:TriageCase ; rdfs:range ex:ESILevel .
+ex:recommendedESI a owl:ObjectProperty , owl:FunctionalProperty ; rdfs:domain ex:TriageCase ; rdfs:range ex:ESILevel .
+ex:hasAlert a owl:ObjectProperty ; rdfs:domain ex:TriageCase ; rdfs:range ex:Alert .
+ex:onVital a owl:ObjectProperty ; rdfs:domain ex:Threshold ; rdfs:range ex:VitalSign .
+ex:usedBy a owl:ObjectProperty ; rdfs:domain ex:Threshold ; rdfs:range ex:Rule .
+ex:measures a owl:ObjectProperty ; rdfs:range ex:VitalSign ;
+    rdfs:comment "Menghubungkan property angka (mis. ex:heartRate) dengan jenis tanda vitalnya (ex:HR)."@id .
+ex:usedRule a owl:ObjectProperty ; rdfs:domain ex:Inference ; rdfs:range ex:Rule .
+ex:aboutCase a owl:ObjectProperty ; rdfs:domain ex:Inference ; rdfs:range ex:TriageCase .
+ex:concluded a owl:ObjectProperty ; rdfs:domain ex:Inference .
+ex:dependsOn a owl:ObjectProperty , owl:TransitiveProperty ; rdfs:domain ex:Inference ; rdfs:range ex:Inference .
+
+# ---------------------------------------------------------------------
+# Nilai angka dan teks (datatype property)
+# ---------------------------------------------------------------------
+ex:vitalValue a owl:DatatypeProperty ; rdfs:domain ex:TriageCase ; rdfs:range xsd:decimal .
+ex:heartRate a owl:DatatypeProperty ; rdfs:subPropertyOf ex:vitalValue ; ex:measures ex:HR .
+ex:respRate a owl:DatatypeProperty ; rdfs:subPropertyOf ex:vitalValue ; ex:measures ex:RR .
+ex:o2Sat a owl:DatatypeProperty ; rdfs:subPropertyOf ex:vitalValue ; ex:measures ex:SpO2 .
+ex:sbp a owl:DatatypeProperty ; rdfs:subPropertyOf ex:vitalValue ; ex:measures ex:SBP .
+ex:avpu a owl:DatatypeProperty ; rdfs:domain ex:TriageCase ; rdfs:comment "Kesadaran: A, V, P, atau U."@id .
+
+ex:levelNumber a owl:DatatypeProperty ; rdfs:domain ex:ESILevel ; rdfs:range xsd:integer .
+ex:comparator a owl:DatatypeProperty ; rdfs:domain ex:Threshold ; rdfs:comment "gt (>), lt (<), ge (>=), le (<=)"@id .
+ex:limit a owl:DatatypeProperty ; rdfs:domain ex:Threshold ; rdfs:range xsd:decimal .
+ex:ruleId a owl:DatatypeProperty ; rdfs:domain ex:Rule .
+ex:priority a owl:DatatypeProperty ; rdfs:domain ex:Rule ; rdfs:comment "Makin kecil makin didahulukan; 9 = dijalankan terakhir."@id .
+ex:ifText a owl:DatatypeProperty ; rdfs:domain ex:Rule .
+ex:thenText a owl:DatatypeProperty ; rdfs:domain ex:Rule .
+ex:sparqlFile a owl:DatatypeProperty ; rdfs:domain ex:Rule .
+ex:alertText a owl:DatatypeProperty ; rdfs:domain ex:Alert .
+ex:reason a owl:DatatypeProperty ; rdfs:domain ex:Inference .

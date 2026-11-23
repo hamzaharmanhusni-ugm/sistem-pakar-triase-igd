@@ -1,0 +1,20 @@
+# F01 (Sepsis-3): IF minimal 2 dari 3 kriteria qSOFA THEN QSOFAPositiveCase dan kandidat ESI 2
+# Kriteria 1-2 dibaca dari ex:Threshold (napas >= 22, TD sistolik <= 100); kriteria 3 = kesadaran bukan A.
+PREFIX ex: <http://example.org/triage-vital/>
+PREFIX prov: <http://www.w3.org/ns/prov#>
+INSERT {
+  ?case a ex:QSOFAPositiveCase ; ex:candidateESI ex:ESI_2 .
+  ?inf a ex:Inference ; ex:usedRule ex:Rule_F01 ; ex:aboutCase ?case ; ex:concluded ex:ESI_2 ; ex:reason ?why .
+}
+WHERE {
+  { SELECT ?case (COUNT(DISTINCT ?k) AS ?n) WHERE {
+      { ?case a ex:TriageCase ; ?p ?v . ?p ex:measures ?vs .
+        ?k ex:usedBy ex:Rule_F01 ; ex:onVital ?vs ; ex:comparator ?c ; ex:limit ?lim .
+        FILTER((?c = "ge" && ?v >= ?lim) || (?c = "le" && ?v <= ?lim)) }
+      UNION
+      { ?case a ex:TriageCase ; ex:avpu ?a . FILTER(?a != "A") BIND("kesadaran" AS ?k) }
+    } GROUP BY ?case }
+  FILTER(?n >= 2)
+  BIND(IRI(CONCAT(STR(?case), "_inf_F01")) AS ?inf)
+  BIND(CONCAT("qSOFA ", STR(?n), " dari 3 kriteria (ambang >= 2): curiga sepsis") AS ?why)
+}
