@@ -330,7 +330,7 @@ ex:Rule_C02 ex:layText "Anak 3 bulan sampai 3 tahun dengan demam tinggi atau imu
 ex:Rule_D01 ex:layText "Nadi, napas, atau kadar oksigen di luar batas aman untuk usianya"@id .
 ex:Rule_E01 ex:layText "Karena tanda vital di luar batas aman, tingkat kegawatan dinaikkan"@id .
 ex:Rule_G01 ex:layText "Perbandingan nadi dan tekanan darah menunjukkan kemungkinan syok"@id .
-ex:Rule_Z01 ex:layText "Dari semua alasan, sistem memakai tingkat kegawatan yang paling tinggi"@id .
+ex:Rule_Z01 ex:layText "Dari semua alasan, sistem menggunakan tingkat kegawatan yang paling tinggi"@id .
 ex:Res_Estimated a ex:Alert ; rdfs:label "Resource diperkirakan dari keluhan" ; ex:alertText "Resource diperkirakan otomatis dari keluhan."@id .
 
 # =====================================================================

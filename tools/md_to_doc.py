@@ -34,6 +34,14 @@ JOBS = {
         'toc': True,
         'figs': {},
     },
+    'bahan-ajar': {
+        'sources': [DOCS_DIR / 'Bahan Ajar TBox ABox dan Aturan.md'],
+        'name': 'Bahan Ajar - TBox, ABox, dan Aturan Sistem Pakar Triase IGD',
+        'title': 'TBox, ABox, dan Aturan pada Sistem Pakar Triase IGD',
+        'subtitle': 'Bahan ajar representasi pengetahuan: dari kamus istilah sampai aturan IF-THEN',
+        'toc': True,
+        'figs': {},
+    },
 }
 
 CSS = """
@@ -66,11 +74,105 @@ def rules_table():
     return '\n'.join(f"| {r['id']} | {r['priority']} | {esc(r['if'])} | {esc(r['then'])} | {esc(r['source'])} |" for r in engine.rules_catalog())
 
 
+EXTRA_CASES = {  # contoh untuk aturan yang tidak punya kasus emas sendiri di tests/test_rules.py
+    'C00': dict(age_years=30, findings=['MinorLaceration'], self_report=True),
+    'G01': dict(age_years=30, hr=99, sbp=90, resources=['Res_Lab'], resources_assessed=True),
+    'G02': dict(age_years=67, findings=['StrokeSigns'], onset='Onset_1to4h'),
+    'Z01': dict(age_years=40, hr=128, resources=['Res_Lab', 'Res_ECG_Xray', 'Res_IVFluid'], resources_assessed=True),
+    'E01': dict(age_years=40, hr=128, resources=['Res_Lab', 'Res_ECG_Xray', 'Res_IVFluid'], resources_assessed=True),
+}
+
+
+def describe(facts, engine):
+    """Fakta kasus (dict) -> kalimat pendek berbahasa Indonesia."""
+    lab = {o['id']: o['label'] for v in engine.vocab().values() for o in (v if isinstance(v, list) else [x for xs in v.values() for x in xs])}
+    unit = {'age_years': 'usia {} tahun', 'age_months': 'usia {} bulan', 'hr': 'nadi {}', 'rr': 'napas {}', 'spo2': 'SpO2 {}%',
+            'sbp': 'TD sistolik {}', 'temp': 'suhu {} °C', 'pain': 'nyeri {}/10', 'avpu': 'AVPU {}'}
+    out = []
+    for k, v in facts.items():
+        if k in unit:
+            out.append(unit[k].format(f'{v:g}'.replace('.', ',') if isinstance(v, float) else v))
+        elif k in ('findings', 'conditions', 'medications', 'pain_sites') and v:
+            out.append(', '.join(lab.get(x, x).lower() for x in v))
+        elif k == 'resources' and v:
+            out.append('resource: ' + ', '.join(lab.get(x, x).lower() for x in v))
+        elif k in ('onset', 'pregnancy', 'sex') and v:
+            out.append(('onset ' if k == 'onset' else '') + lab.get(v, v).lower())
+        elif k == 'onset_sudden':
+            out.append('muncul mendadak' if v else 'muncul perlahan')
+        elif k == 'resources_assessed' and v and not facts.get('resources'):
+            out.append('tanpa resource')
+        elif k == 'self_report' and v:
+            out.append('diisi pasien sendiri')
+    return '; '.join(out)
+
+
+def rules_detail():
+    """Rincian setiap aturan: dari knowledge graph (kartu aturan), berkas .rq, dan contoh kasus yang dijalankan engine."""
+    import os
+    os.environ.setdefault('KG_BACKEND', 'rdflib')
+    os.environ.setdefault('LLM_ENABLED', '0')
+    sys.path.insert(0, str(ROOT))
+    from app import engine
+    from tests.test_rules import CASES
+    q = engine.PREFIX + '''SELECT ?id ?if ?then ?cite ?lay ?note ?file ?dp ?src WHERE {
+        ?r a ex:Rule ; ex:ruleId ?id ; ex:ifText ?if ; ex:thenText ?then ; dcterms:bibliographicCitation ?cite ; ex:sparqlFile ?file ;
+           dcterms:source/rdfs:label ?src .
+        OPTIONAL { ?r ex:layText ?lay } OPTIONAL { ?r skos:editorialNote ?note } OPTIONAL { ?r ex:atDecisionPoint/rdfs:label ?dp } }'''
+    rows = {str(r.id): r for r in engine.knowledge_base().query(q)}
+    asked = {}
+    for qn in engine.questions():
+        for rid in qn['needed_by']:
+            asked.setdefault(rid, []).append(qn['text'].split('?')[0] + '?')
+    groups = [('A', 'Decision Point A: penyelamatan nyawa', ['A01', 'A02', 'A03']),
+              ('B', 'Decision Point B: situasi risiko tinggi', ['B01', 'B02', 'B03', 'B04', 'B05', 'B06', 'B07', 'B08', 'B09', 'B10', 'B11', 'B12', 'F01']),
+              ('C', 'Decision Point C: resource', ['C00', 'C01', 'C02']),
+              ('D', 'Decision Point D: tanda vital', ['D01', 'E01']),
+              ('G', 'Aturan pendukung (tidak mengubah level ESI)', ['G01', 'G02']),
+              ('Z', 'Resolusi konflik', ['Z01'])]
+    md = []
+    for _, title, ids in groups:
+        md.append(f'## {title}\n')
+        for rid in ids:
+            r = rows[rid]
+            text = (ROOT / 'kb' / str(r.file)).read_text(encoding='utf-8')
+            body = '\n'.join(l for l in text.splitlines() if not l.startswith(('PREFIX', '#')))
+            ins, _, where = body.partition('WHERE')
+            terms = lambda s: ', '.join(sorted({f'`ex:{t}`' for t in re.findall(r'ex:(\w+)', s)}))
+            case = next((dict(c[1]) for c in CASES if rid in c[3]), None) or dict(EXTRA_CASES[rid])
+            case.setdefault('findings', [])
+            case.setdefault('resources', [])
+            res = engine.infer(dict(case), 'Contoh')
+            fired = sorted({t['rule'] for t in res['trace']})
+            lay = f' ({r.lay})' if r.lay else ''
+            md.append(f'### {rid}{lay}\n')
+            md.append('| Bagian | Isi |\n| --- | --- |')
+            md.append(f'| Kelompok | {r.dp or "Di luar Decision Point"} |')
+            md.append(f'| JIKA | {str(r["if"]).replace("|", "/")} |')
+            md.append(f'| MAKA | {str(r.then).replace("|", "/")} |')
+            md.append(f'| Sumber | {r.cite} |')
+            md.append(f'| Membaca dari knowledge graph | {terms(where)} |')
+            md.append(f'| Menulis ke knowledge graph | {terms(ins)} |')
+            if rid in asked:
+                md.append(f'| Fakta dikumpulkan melalui pertanyaan | {" / ".join(asked[rid])} |')
+            md.append(f'| Contoh kasus | {describe(case, engine)} |')
+            md.append(f'| Hasil contoh | ESI {res["esi"]}; aturan terpicu: {", ".join(fired)} |')
+            if r.note:
+                md.append(f'| Catatan | {r.note} |')
+            md.append(f'| Berkas | `kb/{r.file}` |\n')
+            comment = ' '.join(l.lstrip('# ').strip() for l in text.splitlines() if l.startswith('#'))
+            md.append(f'Kode SPARQL aturan {rid} (baris PREFIX dihilangkan). Bagian `WHERE` adalah syarat JIKA; bagian `INSERT` adalah kesimpulan MAKA beserta jejak penjelasannya. {comment}\n')
+            md.append(f'```sparql\n{body.strip()}\n```\n')
+    return '\n'.join(md)
+
+
 def to_html(md_text, figs):
     md_text = re.sub(r'^---\n.*?\n---\n', '', md_text, flags=re.S)          # frontmatter Obsidian
     md_text = re.sub(r'\[([^\]]+)\]\(<?[^)]*\.md>?\)', r'\1', md_text)      # tautan antar-dokumen jadi teks
     if '{{RULES}}' in md_text:
         md_text = md_text.replace('{{RULES}}', rules_table())
+    if '{{RULES_DETAIL}}' in md_text:
+        md_text = md_text.replace('{{RULES_DETAIL}}', rules_detail())
     html = markdown.markdown(md_text, extensions=['tables', 'fenced_code'])
     # gambar Markdown: path relatif -> URI absolut; teks alt menjadi keterangan di bawah gambar
     html = re.sub(r'<p><img alt="([^"]*)" src="([^"]+)"\s*/?></p>',
