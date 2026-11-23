@@ -270,7 +270,7 @@ ex:Rule_Z01 a ex:Rule ; ex:ruleId "Z01" ; ex:priority 9 ;
 # ---------------------------------------------------------------------
 ex:Q_Age a ex:Question ; ex:askOrder 1 ; ex:slot "age" ;
     ex:questionText "Berapa usia pasien? (contoh: 45 tahun, 2 tahun, 6 bulan, atau 20 hari)"@id ;
-    ex:neededBy ex:Rule_D01 , ex:Rule_B04 , ex:Rule_B05 , ex:Rule_C02 , ex:Rule_F01 .
+    ex:neededBy ex:Rule_D01 , ex:Rule_B04 , ex:Rule_B05 , ex:Rule_C02 , ex:Rule_F01 , ex:Rule_B08 .
 ex:Q_Complaint a ex:Question ; ex:askOrder 2 ; ex:slot "findings" ;
     ex:questionText "Apa keluhan utama pasien dan kondisi yang terlihat? (mis. nyeri dada, sesak berat, bingung, muntah darah)"@id ;
     ex:neededBy ex:Rule_A01 , ex:Rule_B01 , ex:Rule_B02 .

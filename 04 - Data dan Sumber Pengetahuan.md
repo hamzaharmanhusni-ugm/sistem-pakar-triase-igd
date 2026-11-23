@@ -36,7 +36,7 @@ flowchart LR
 
 Aturan tidak dikarang. Setiap aturan menunjuk sumbernya melalui `dcterms:source` (individu `ex:Source`) dan `dcterms:bibliographicCitation` (bab atau tabel). Sumber yang digunakan:
 
-| Individu | Dokumen | Dipakai untuk |
+| Individu | Dokumen | Digunakan untuk |
 | --- | --- | --- |
 | `ex:Src_ESIv4` | Gilboy N, Tanabe P, Travers D, Rosenau AM. *Emergency Severity Index (ESI), Version 4. Implementation Handbook 2012 Edition.* AHRQ 12-0014. Salinan PDF ada di folder bahan *Thesis Preparation*. | Algoritma Decision Point A-D, ambang danger zone per usia, definisi resource, situasi risiko tinggi (Tabel 3-1), demam pada anak, aturan A01-A03, B01-B12, C00-C02, D01, E01, Z01 |
 | `ex:Src_Sepsis3` | Singer M, dkk. Sepsis-3. *JAMA* 2016;315(8):801-810. | Aturan F01 (qSOFA) |
@@ -86,7 +86,8 @@ Setelah dimuat ke GraphDB, reasoner OWL 2 RL menambahkan triple turunan: total 3
 | Berkas mentah | `data/raw/mc-med-1.0.0/visits.csv` (38 MB, 33 kolom per kunjungan: usia, jenis kelamin, tanda vital triase, ESI perawat, keluhan utama, disposisi, diagnosis ICD-10). Salinan dari `Thesis Preparation/Dataset/mc-med-1.0.0`. Folder `data/` masuk `.gitignore` sehingga tidak pernah ter-commit |
 | Pengolahan | `python -I kb/build_evidence.py` (tanpa argumen membaca `data/raw/...`) menghitung agregat per level ESI dan per status danger zone |
 | Yang disimpan | Hanya angka agregat di `kb/evidence.ttl`, masing-masing `prov:wasDerivedFrom ex:Src_MCMED` |
-| Dipakai untuk | Menampilkan bukti pendukung di hasil, mis. "dari 27.880 kunjungan ESI 2, 49% dirawat inap" |
+| Digunakan untuk | Menampilkan bukti pendukung di hasil, mis. "dari 27.880 kunjungan ESI 2, 49% dirawat inap" |
+| Versi Excel | `data/processed/MC-MED Data Kunjungan IGD.xlsx`, dibuat `tools/visits_to_excel.py`. Berisi sheet Baca Saya, Data Kunjungan (setiap judul kolom berkomentar: arti, satuan, dan kaitannya dengan aturan), Kamus Data, dan Ringkasan ESI (rumus Excel yang mencocokkan ulang angka `evidence.ttl`). Ikut di-gitignore |
 
 | Agregat | Kunjungan | Rawat inap atau ICU | Luaran kritis |
 | --- | --- | --- | --- |
