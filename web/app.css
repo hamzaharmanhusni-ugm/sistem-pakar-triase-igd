@@ -193,6 +193,14 @@ body.on-result .foot .tech-link { display: none; }
 .mind { position: fixed; top: 65px; right: 0; bottom: 0; width: min(600px, 100vw); z-index: 50; background: #0f1915; color: #dfe9e4;
         display: flex; flex-direction: column; box-shadow: -24px 0 48px -24px rgba(0, 0, 0, .5); animation: slide .4s var(--ease); }
 @keyframes slide { from { transform: translateX(40px); opacity: 0; } }
+/* U2: mode lebar untuk presentasi kelas */
+.mind.wide { width: min(1200px, 94vw); }
+.mind.wide .mpane { font-size: 1.08rem; }
+.mind.wide pre.code { font-size: .92rem; }
+.mind.wide .triples { font-size: .95rem; }
+.mind-tools { display: flex; gap: 8px; align-items: flex-start; }
+/* U1: anak grid boleh menyusut agar hanya blok kode yang bergulir, bukan seluruh laci */
+.rbody > *, details.deep { min-width: 0; }
 .mind-head { display: flex; justify-content: space-between; gap: 12px; padding: 22px 24px 14px; }
 .mind-head h2 { font-size: 1.35rem; font-weight: 800; color: #fff; letter-spacing: -.02em; }
 .mind-head p { color: #9db3aa; font-size: .95rem; margin-top: 4px; max-width: 52ch; }
@@ -290,6 +298,11 @@ table.dense tr.fired td { background: #123a30; }
   .btn.primary, .btn.sos-btn { width: 100%; }
   .mtabs { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .rbody { padding-left: 14px; }
+  .mind-head, .mpane { padding-inline: 16px; }
+  .triples li { grid-template-columns: minmax(0, 1fr); gap: 0; }
+  .triples .p, .triples .o { padding-left: 12px; }
+  pre.code { white-space: pre-wrap; overflow-wrap: anywhere; }
+  #mind-wide { display: none; }
   .kb-stats { grid-template-columns: 1fr; }
   .foot { padding-inline: 12px; }
 }

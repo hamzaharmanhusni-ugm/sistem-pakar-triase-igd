@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/static/app.css">
+<link rel="stylesheet" href="/static/app.css?v=3">
 </head>
 <body>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
@@ -50,7 +50,10 @@
       <h2>Cara sistem pakar berpikir</h2>
       <p id="mind-sub">Setiap jawaban menjadi fakta di knowledge graph, lalu aturan triase ESI diuji satu per satu.</p>
     </div>
-    <button class="icon-btn" id="mind-close" type="button" aria-label="Tutup detail teknis"><svg class="ic"><use href="#i-x"/></svg></button>
+    <div class="mind-tools">
+      <button class="icon-btn" id="mind-wide" type="button" aria-pressed="false" aria-label="Perlebar detail teknis" title="Perlebar (F)"><svg class="ic" viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
+      <button class="icon-btn" id="mind-close" type="button" aria-label="Tutup detail teknis"><svg class="ic"><use href="#i-x"/></svg></button>
+    </div>
   </div>
   <nav class="mtabs" role="tablist">
     <button role="tab" aria-selected="true" data-pane="m-flow">Alur ESI</button>
@@ -78,6 +81,6 @@
     <table class="dense" id="rules"></table>
   </div>
 </aside>
-<script src="/static/app.js"></script>
+<script src="/static/app.js?v=3"></script>
 </body>
 </html>

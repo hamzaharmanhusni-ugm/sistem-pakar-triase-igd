@@ -143,7 +143,7 @@ const VIEWS = {
       ${DANGER.map(([id, t]) => `<button class="opt danger" type="button" data-act="danger" data-v="${id}" ${pressed(S.danger.includes(id))}>${tick}${t}</button>`).join('')}
       <button class="opt" type="button" data-act="dangerNone" ${pressed(S.dangerNone)}>${tick}Tidak ada yang sesuai</button>
     </div>
-    ${S.danger.length ? cta('Lihat hasil sekarang', true, '', 'next', 'sos-btn') : cta('Lanjut', S.dangerNone, 'Pilih kondisi yang sesuai, atau "Tidak ada yang sesuai".')}`,
+    ${S.danger.length ? `<div class="cta"><p class="note warn" role="status" style="flex-basis:100%;margin:0">Ada tanda bahaya yang mengancam nyawa, sehingga pertanyaan lain dilewati. Segera telepon 119 atau ke IGD terdekat.</p><a class="btn sos-btn" href="tel:119"><svg class="ic"><use href="#i-phone"/></svg>Telepon 119</a><button class="btn ghost" type="button" data-act="next" id="next">Lanjut ke hasil ${arrow}</button></div>` : cta('Lanjut', S.dangerNone, 'Pilih kondisi yang sesuai, atau "Tidak ada yang sesuai".')}`,
 
   complaint: () => {
     const chip = ([id, t], alarm) => `<button class="chip ${alarm ? 'alarm' : ''}" type="button" data-act="finding" data-v="${id}" ${pressed(S.findings.includes(id))}>${t}</button>`;
@@ -371,6 +371,17 @@ function openMind(on) {
   $('#backdrop').hidden = !on;
   if (on) { if (ageOk() && S.step >= 2 && !S.result) assess().catch(() => {}); $('#mind-close').focus(); }
 }
+function setWide(on) {
+  $('#mind').classList.toggle('wide', on);
+  $('#mind-wide').setAttribute('aria-pressed', on);
+  $('#mind-wide').setAttribute('aria-label', on ? 'Kembalikan lebar detail teknis' : 'Perlebar detail teknis');
+  try { localStorage.setItem('mindWide', on ? '1' : ''); } catch {}
+}
+try { setWide(localStorage.getItem('mindWide') === '1'); } catch {}
+$('#mind-wide').onclick = () => setWide(!$('#mind').classList.contains('wide'));
+document.addEventListener('keydown', e => {
+  if (e.key.toLowerCase() === 'f' && !$('#mind').hidden && !/INPUT|TEXTAREA/.test(e.target.tagName)) setWide(!$('#mind').classList.contains('wide'));
+});
 $('#mind-close').onclick = () => openMind(false);
 $('#backdrop').onclick = () => openMind(false);
 document.querySelectorAll('.mtabs button').forEach(t => t.onclick = () => {

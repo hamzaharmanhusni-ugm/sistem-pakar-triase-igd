@@ -77,7 +77,7 @@ def test_child_fever_tachycardia_gets_esi2_with_plain_reasons(server, page):
 def test_danger_sign_short_circuits_to_esi1(server, page):
     start(page, server, '70')
     page.click('text=Tidak bernapas, atau napasnya megap-megap')
-    page.click('text=Lihat hasil sekarang')
+    page.click('text=Lanjut ke hasil')
     page.locator('.verdict').wait_for()
     assert 'Tingkat 1' in page.locator('.level').inner_text()
     assert page.locator('.verdict a[href="tel:119"]').count() == 1
