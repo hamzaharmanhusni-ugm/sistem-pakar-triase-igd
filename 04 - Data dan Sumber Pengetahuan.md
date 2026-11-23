@@ -52,13 +52,13 @@ Aturan yang ambangnya belum dinyatakan eksplisit di sumber diberi catatan `skos:
 | Berkas | Isi | Jumlah triple |
 | --- | --- | --- |
 | `kb/triage-ontology.ttl` | TBox v2.2: kelas (kasus, pasien, temuan, riwayat, obat, wilayah tubuh, onset, aturan, pertanyaan, inferensi) dan property beserta domain/range | 298 |
-| `kb/knowledge.ttl` | ABox pengetahuan: level ESI, Decision Point, kelompok usia, ambang danger zone, resource, temuan klinis dengan sinonim, riwayat penyakit, obat, penanda risiko, wilayah tubuh, onset, metadata aturan, pertanyaan dialog | 1.032 |
+| `kb/knowledge.ttl` | ABox pengetahuan: level ESI, Decision Point, kelompok usia, ambang danger zone, resource, temuan klinis dengan sinonim, riwayat penyakit, obat, penanda risiko, wilayah tubuh, onset, metadata aturan, pertanyaan dialog | 1.033 |
 | `kb/evidence.ttl` | Statistik agregat MC-MED (lihat bagian 3) | 44 |
 | `kb/shapes.ttl` | SHACL: syarat data kasus dan pasien sebelum inferensi | 75 |
 | `kb/rules/*.rq` | 24 aturan IF-THEN dalam bentuk SPARQL `INSERT ... WHERE` | 24 berkas |
 | `kb/graphdb/repo-config.ttl` | Konfigurasi repository GraphDB `triage-es` dengan reasoner OWL 2 RL | |
 
-Setelah dimuat ke GraphDB, reasoner OWL 2 RL menambahkan triple turunan: total 3.414 triple (1.374 eksplisit, 2.040 hasil reasoner).
+Setelah dimuat ke GraphDB, reasoner OWL 2 RL menambahkan triple turunan: total 3.415 triple (1.375 eksplisit, 2.040 hasil reasoner).
 
 **Isi pengetahuan dalam angka**
 

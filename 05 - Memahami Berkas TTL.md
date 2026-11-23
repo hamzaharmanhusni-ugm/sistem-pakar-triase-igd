@@ -66,7 +66,7 @@ Dengan demikian, baris di atas berisi **enam triple**: Demam adalah Gejala, sist
 | Berkas | Analogi | Isi | Triple |
 | --- | --- | --- | --- |
 | `triage-ontology.ttl` | **Kamus dan tata bahasa** (TBox) | Jenis-jenis benda (kelas) dan jenis hubungan (property) beserta aturannya: domain, range, subkelas, transitif | 298 |
-| `knowledge.ttl` | **Isi buku pedoman** (ABox pengetahuan) | Konsep klinis nyata: level ESI, ambang danger zone, 44 temuan, riwayat penyakit, obat, wilayah tubuh, metadata 24 aturan, pertanyaan | 1.032 |
+| `knowledge.ttl` | **Isi buku pedoman** (ABox pengetahuan) | Konsep klinis nyata: level ESI, ambang danger zone, 44 temuan, riwayat penyakit, obat, wilayah tubuh, metadata 24 aturan, pertanyaan | 1.033 |
 | `evidence.ttl` | **Lampiran statistik** | Angka agregat MC-MED per level ESI | 44 |
 | `shapes.ttl` | **Petugas pemeriksa formulir** (SHACL) | Syarat data kasus: usia wajib, nadi 0-300, riwayat harus individu `ex:Condition` | 75 |
 | `rules/*.rq` | **Pasal IF-THEN** | 24 aturan triase dalam SPARQL `INSERT ... WHERE` | 24 berkas |
@@ -128,9 +128,9 @@ Reasoner OWL 2 RL di GraphDB membaca aksioma di atas lalu **menambahkan triple s
 
 | | Triple |
 | --- | --- |
-| Ditulis tangan (eksplisit) | 1.374 |
+| Ditulis tangan (eksplisit) | 1.375 |
 | Disimpulkan reasoner | 2.040 |
-| Total | 3.414 |
+| Total | 3.415 |
 
 Sebagian besar hasil reasoner bersifat teknis (mis. setiap benda adalah `owl:Thing`, setiap benda sama dengan dirinya sendiri). Yang bermakna untuk triase dijelaskan di bawah.
 
