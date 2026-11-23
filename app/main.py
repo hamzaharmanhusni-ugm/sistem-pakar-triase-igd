@@ -109,5 +109,12 @@ def rules():
 
 @app.get('/api/health')
 def health():
-    return {'triples_kb': len(engine.knowledge_base()), 'rules': len(engine.rules_catalog()), 'llm': llm.status(),
-            'backend': engine.backend(), 'graphdb': {'url': graphdb.URL, 'repo': graphdb.REPO}}
+    backend = engine.backend()
+    triples = len(engine.knowledge_base())
+    if backend == 'graphdb':  # jumlah di GraphDB (eksplisit + hasil reasoner OWL 2 RL)
+        try:
+            triples = int(graphdb.select('SELECT (COUNT(*) AS ?n) WHERE { ?s ?p ?o }')[0]['n'])
+        except Exception:
+            pass
+    return {'triples_kb': triples, 'rules': len(engine.rules_catalog()), 'llm': llm.status(),
+            'backend': backend, 'graphdb': {'url': graphdb.URL, 'repo': graphdb.REPO}}
