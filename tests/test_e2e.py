@@ -31,7 +31,9 @@ def server():
 def start(page, url, age, who='Saya sendiri', unit='tahun', width=1440):
     page.set_viewport_size({'width': width, 'height': 900})
     page.goto(url)
-    assert page.locator('#next').is_disabled()  # wajib memilih siapa yang sakit
+    assert page.locator('#next').is_disabled()  # wajib memilih peran lalu siapa yang sakit
+    page.click('[data-act=mode][data-v=lay]')
+    assert page.locator('#next').is_disabled()
     page.click(f'text={who}')
     page.click('text=Mulai cek')
     page.fill('#age', age)
@@ -47,6 +49,7 @@ def test_child_fever_tachycardia_gets_esi2_with_plain_reasons(server, page):
     page.click('text=Demam')
     page.click('text=Batuk atau pilek')
     page.click('[data-act=next]')
+    page.click('[data-act=next]')  # riwayat: dilewati
     page.click('[data-act=pain][data-v="4"]')  # balita: skala perilaku
     page.click('[data-act=next]')
     page.fill('[data-m=temp]', '39,4')
@@ -89,6 +92,7 @@ def test_minor_complaint_goes_to_clinic(server, page):
     page.click('[data-act=next]')
     page.click('text=Gatal atau ruam')
     page.click('[data-act=next]')
+    page.click('[data-act=next]')  # riwayat: dilewati
     page.click('[data-act=pain][data-v="1"]')
     page.click('[data-act=next]')
     page.click('text=Lewati, belum mengukur')
@@ -110,6 +114,7 @@ def test_free_text_complaint_is_recognised(server, page):
 def test_mobile_layout_no_horizontal_scroll(server, page):
     page.set_viewport_size({'width': 390, 'height': 844})
     page.goto(server)
+    page.click('[data-act=mode][data-v=lay]')
     page.click('text=Anak saya')
     page.click('text=Mulai cek')
     assert page.evaluate('document.documentElement.scrollWidth <= window.innerWidth')
@@ -118,6 +123,7 @@ def test_mobile_layout_no_horizontal_scroll(server, page):
 def test_self_report_requires_plausible_age(server, page):
     page.set_viewport_size({'width': 1440, 'height': 900})
     page.goto(server)
+    page.click('[data-act=mode][data-v=lay]')
     page.click('text=Saya sendiri')
     page.click('text=Mulai cek')
     assert page.locator('.seg button').count() == 1  # hanya satuan tahun
@@ -126,3 +132,43 @@ def test_self_report_requires_plausible_age(server, page):
     assert 'Anak saya' in page.locator('#age-hint').inner_text()
     page.fill('#age', '25')
     assert page.locator('#next').is_enabled()
+
+
+def test_lay_history_changes_level(server, page):
+    """Muntah biasa = klinik, tetapi muntah pada penderita diabetes = risiko tinggi (aturan B10)."""
+    start(page, server, '50')
+    page.click('[data-act=dangerNone]')
+    page.click('[data-act=next]')
+    page.click('text=Mual, muntah, atau diare')
+    page.click('[data-act=next]')
+    page.click('.chip:text("Diabetes (kencing manis)")')
+    page.click('[data-act=next]')
+    page.click('[data-act=pain][data-v="2"]')
+    page.click('[data-act=next]')
+    page.click('text=Lewati, belum mengukur')
+    page.locator('.verdict').wait_for()
+    assert 'Tingkat 2' in page.locator('.level').inner_text()
+    assert 'diabetes' in page.locator('.reasons').inner_text().lower()
+
+
+def test_nurse_form_head_injury_on_anticoagulant(server, page):
+    page.set_viewport_size({'width': 1440, 'height': 900})
+    page.goto(server)
+    page.click('[data-act=mode][data-v=nurse]')
+    page.click('text=Buka formulir triase')
+    page.fill('#age', '78')
+    page.click('.seg button:text-is("Perempuan")')
+    page.click('.chip:text("Kepala terbentur tanpa pingsan")')
+    page.click('.chip:text("Pengencer darah")')
+    page.fill('[data-m=hr]', '88')
+    page.fill('[data-m=sbp]', '150')
+    page.click('[data-act=avpu][data-v=A]')
+    page.click('.chip:text("CT, MRI, USG, atau angiografi")')
+    page.click('text=Tentukan level ESI')
+    page.locator('.verdict').wait_for()
+    assert 'ESI 2' in page.locator('.level').inner_text()
+    assert 'B06' in page.locator('.reasons').inner_text()
+    sbar = page.locator('.handover').inner_text()
+    assert 'Pengencer darah' in sbar and 'TD 150' in sbar
+    page.click('text=Ubah data triase')
+    assert page.locator('#age').input_value() == '78'  # data formulir tetap ada

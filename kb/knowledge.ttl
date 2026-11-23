@@ -332,3 +332,123 @@ ex:Rule_E01 ex:layText "Karena tanda vital di luar batas aman, tingkat kegawatan
 ex:Rule_G01 ex:layText "Perbandingan nadi dan tekanan darah menunjukkan kemungkinan syok"@id .
 ex:Rule_Z01 ex:layText "Dari semua alasan, sistem memakai tingkat kegawatan yang paling tinggi"@id .
 ex:Res_Estimated a ex:Alert ; rdfs:label "Resource diperkirakan dari keluhan" ; ex:alertText "Resource diperkirakan otomatis dari keluhan."@id .
+
+# =====================================================================
+# v2.2: model pasien dan anamnesis terstruktur (audit klinis K2-K4, R1-R3)
+# Gilboy 2012 Bab 3: usia, riwayat penyakit, dan obat memengaruhi penilaian risiko tinggi.
+# Riwayat dan obat tidak dibaca aturan satu per satu, tetapi melalui penanda risiko (ex:riskFlag).
+# =====================================================================
+ex:Src_AHAStroke a ex:Source ;
+    rdfs:label "Powers WJ, dkk. Guidelines for the Early Management of Patients With Acute Ischemic Stroke: 2019 Update. Stroke. 2019;50(12):e344-e418." ;
+    rdfs:seeAlso <https://doi.org/10.1161/STR.0000000000000211> .
+
+# Penanda risiko
+ex:Risk_Bleeding a ex:RiskFlag ; skos:prefLabel "Risiko perdarahan"@id .
+ex:Risk_Immunocompromised a ex:RiskFlag ; skos:prefLabel "Imunokompromais"@id .
+ex:Risk_Cardiac a ex:RiskFlag ; skos:prefLabel "Risiko kardiovaskular"@id .
+ex:Risk_Metabolic a ex:RiskFlag ; skos:prefLabel "Risiko gangguan metabolik (diabetes)"@id .
+ex:Risk_Hyperkalemia a ex:RiskFlag ; skos:prefLabel "Risiko hiperkalemia"@id .
+ex:Risk_Anaphylaxis a ex:RiskFlag ; skos:prefLabel "Riwayat reaksi alergi berat"@id .
+
+# Riwayat penyakit (skos:notation = blok ICD-10)
+ex:Cond_HeartDisease a ex:Condition ; skos:prefLabel "Penyakit jantung (koroner, gagal jantung)"@id ; skos:notation "I20-I25, I50" ; ex:riskFlag ex:Risk_Cardiac ;
+    skos:altLabel "sakit jantung"@id , "jantung koroner"@id , "gagal jantung"@id .
+ex:Cond_Hypertension a ex:Condition ; skos:prefLabel "Hipertensi (darah tinggi)"@id ; skos:notation "I10" ; ex:riskFlag ex:Risk_Cardiac ;
+    skos:altLabel "darah tinggi"@id , "tekanan darah tinggi"@id .
+ex:Cond_Diabetes a ex:Condition ; skos:prefLabel "Diabetes (kencing manis)"@id ; skos:notation "E10-E14" ; ex:riskFlag ex:Risk_Cardiac , ex:Risk_Metabolic ;
+    skos:altLabel "kencing manis"@id , "gula darah tinggi"@id .
+ex:Cond_AsthmaCOPD a ex:Condition ; skos:prefLabel "Asma atau PPOK"@id ; skos:notation "J44-J45" ; skos:altLabel "asma"@id , "ppok"@id , "bengek"@id .
+ex:Cond_Stroke a ex:Condition ; skos:prefLabel "Pernah stroke"@id ; skos:notation "I63, Z86.73" ; ex:riskFlag ex:Risk_Cardiac .
+ex:Cond_Dialysis a ex:Condition ; skos:prefLabel "Gagal ginjal atau cuci darah"@id ; skos:notation "N18.6, Z99.2" ; ex:riskFlag ex:Risk_Hyperkalemia ;
+    skos:altLabel "cuci darah"@id , "hemodialisis"@id , "gagal ginjal"@id .
+ex:Cond_Cancer a ex:Condition ; skos:prefLabel "Kanker yang sedang diobati"@id ; skos:notation "C00-C97" ; ex:riskFlag ex:Risk_Immunocompromised .
+ex:Cond_Transplant a ex:Condition ; skos:prefLabel "Transplantasi organ"@id ; skos:notation "Z94" ; ex:riskFlag ex:Risk_Immunocompromised .
+ex:Cond_HIV a ex:Condition ; skos:prefLabel "HIV atau gangguan kekebalan tubuh"@id ; skos:notation "B20-B24, D84" ; ex:riskFlag ex:Risk_Immunocompromised .
+ex:Cond_Epilepsy a ex:Condition ; skos:prefLabel "Epilepsi (ayan)"@id ; skos:notation "G40" ; skos:altLabel "ayan"@id , "sering kejang"@id .
+ex:Cond_Anaphylaxis a ex:Condition ; skos:prefLabel "Pernah alergi berat (anafilaksis)"@id ; skos:notation "Z88, T78.2" ; ex:riskFlag ex:Risk_Anaphylaxis .
+
+# Golongan obat
+ex:Med_Anticoagulant a ex:MedicationClass ; skos:prefLabel "Pengencer darah (warfarin, clopidogrel, aspirin rutin)"@id ; ex:riskFlag ex:Risk_Bleeding .
+ex:Med_Insulin a ex:MedicationClass ; skos:prefLabel "Insulin atau obat diabetes"@id ; ex:riskFlag ex:Risk_Metabolic .
+ex:Med_Steroid a ex:MedicationClass ; skos:prefLabel "Steroid jangka panjang"@id ; ex:riskFlag ex:Risk_Immunocompromised .
+ex:Med_Chemo a ex:MedicationClass ; skos:prefLabel "Kemoterapi atau obat penekan imun"@id ; ex:riskFlag ex:Risk_Immunocompromised .
+
+ex:Preg_Yes a ex:PregnancyStatus ; skos:prefLabel "Hamil"@id .
+ex:Preg_Possible a ex:PregnancyStatus ; skos:prefLabel "Mungkin hamil (telat haid)"@id .
+ex:Preg_No a ex:PregnancyStatus ; skos:prefLabel "Tidak hamil"@id .
+ex:Sex_F a ex:Sex ; skos:prefLabel "Perempuan"@id .
+ex:Sex_M a ex:Sex ; skos:prefLabel "Laki-laki"@id .
+
+# Wilayah tubuh (skos:broader membentuk hierarki; aturan membaca property path skos:broader*)
+ex:Region_Head a ex:BodyRegion ; skos:prefLabel "Kepala"@id .
+ex:Region_Neck a ex:BodyRegion ; skos:prefLabel "Leher"@id .
+ex:Region_Chest a ex:BodyRegion ; skos:prefLabel "Dada"@id .
+ex:Region_Abdomen a ex:BodyRegion ; skos:prefLabel "Perut (seluruh)"@id .
+ex:Region_Epigastric a ex:BodyRegion ; skos:prefLabel "Ulu hati"@id ; skos:broader ex:Region_Abdomen .
+ex:Region_RUQ a ex:BodyRegion ; skos:prefLabel "Perut kanan atas"@id ; skos:broader ex:Region_Abdomen .
+ex:Region_LUQ a ex:BodyRegion ; skos:prefLabel "Perut kiri atas"@id ; skos:broader ex:Region_Abdomen .
+ex:Region_Umbilical a ex:BodyRegion ; skos:prefLabel "Sekitar pusar"@id ; skos:broader ex:Region_Abdomen .
+ex:Region_RLQ a ex:BodyRegion ; skos:prefLabel "Perut kanan bawah"@id ; skos:broader ex:Region_Abdomen .
+ex:Region_LLQ a ex:BodyRegion ; skos:prefLabel "Perut kiri bawah"@id ; skos:broader ex:Region_Abdomen .
+ex:Region_Pelvis a ex:BodyRegion ; skos:prefLabel "Perut bawah, panggul, atau kelamin"@id ; skos:broader ex:Region_Abdomen .
+ex:Region_Back a ex:BodyRegion ; skos:prefLabel "Punggung"@id .
+ex:Region_Flank a ex:BodyRegion ; skos:prefLabel "Pinggang"@id ; skos:broader ex:Region_Back .
+ex:Region_Arm a ex:BodyRegion ; skos:prefLabel "Lengan atau tangan"@id .
+ex:Region_Leg a ex:BodyRegion ; skos:prefLabel "Tungkai atau kaki"@id .
+
+# Onset (rentang jam)
+ex:Onset_lt1h a ex:OnsetCategory ; skos:prefLabel "Kurang dari 1 jam"@id ; ex:maxHours 1.0 .
+ex:Onset_1to4h a ex:OnsetCategory ; skos:prefLabel "1 sampai 4,5 jam"@id ; ex:maxHours 4.5 .
+ex:Onset_4to24h a ex:OnsetCategory ; skos:prefLabel "4,5 sampai 24 jam"@id ; ex:maxHours 24.0 .
+ex:Onset_1to3d a ex:OnsetCategory ; skos:prefLabel "1 sampai 3 hari"@id ; ex:maxHours 72.0 .
+ex:Onset_gt3d a ex:OnsetCategory ; skos:prefLabel "Lebih dari 3 hari"@id ; ex:maxHours 9999.0 .
+
+# Temuan baru
+ex:MinorHeadInjury a ex:Symptom ; ex:bodySystem ex:Sys_Trauma ; skos:prefLabel "Kepala terbentur tanpa pingsan"@id ;
+    skos:altLabel "kepala terbentur ringan"@id , "benjol di kepala"@id ; ex:typicalResource ex:Res_CT_MRI_USG .
+
+ex:Alert_StrokeWindow a ex:Alert ; dcterms:source ex:Src_AHAStroke ;
+    ex:alertText "Tanda stroke dengan onset 4,5 jam atau kurang: aktifkan kode stroke, masih dalam jendela waktu trombolisis."@id .
+
+# Aturan baru: kombinasi keluhan dengan konteks pasien (menggantikan konsep gabungan seperti DKARisk)
+ex:Rule_B06 a ex:Rule ; ex:ruleId "B06" ; ex:priority 2 ; ex:atDecisionPoint ex:DP_B ; ex:concludes ex:ESI_2 ;
+    ex:ifText "Cedera kepala DAN riwayat atau obat dengan penanda risiko perdarahan (mis. pengencer darah)"@id ; ex:thenText "Kandidat ESI 2"@id ;
+    dcterms:source ex:Src_ESIv4 ; dcterms:bibliographicCitation "Gilboy 2012, Bab 3: riwayat dan obat memengaruhi risiko" ; skos:editorialNote "Perlu validasi pakar klinis"@id ;
+    ex:sparqlFile "rules/B06_cedera_kepala_antikoagulan.rq" ; ex:layText "Kepala terbentur saat sedang minum obat pengencer darah"@id .
+ex:Rule_B07 a ex:Rule ; ex:ruleId "B07" ; ex:priority 2 ; ex:atDecisionPoint ex:DP_B ; ex:concludes ex:ESI_2 ;
+    ex:ifText "(Demam ATAU suhu >= 38,0 °C) DAN riwayat atau obat dengan penanda imunokompromais"@id ; ex:thenText "Kandidat ESI 2"@id ;
+    dcterms:source ex:Src_ESIv4 ; dcterms:bibliographicCitation "Gilboy 2012, Bab 3 dan Tabel 3-1: demam pada pasien imunokompromais" ;
+    ex:sparqlFile "rules/B07_demam_imunokompromais.rq" ; ex:layText "Demam pada orang dengan daya tahan tubuh lemah (kemoterapi, transplantasi, atau sejenisnya)"@id .
+ex:Rule_B08 a ex:Rule ; ex:ruleId "B08" ; ex:priority 2 ; ex:atDecisionPoint ex:DP_B ; ex:concludes ex:ESI_2 ;
+    ex:ifText "Nyeri perut (keluhan atau lokasi nyeri di wilayah perut) DAN usia >= 65 tahun"@id ; ex:thenText "Kandidat ESI 2"@id ;
+    dcterms:source ex:Src_ESIv4 ; dcterms:bibliographicCitation "Gilboy 2012, Bab 3 dan Tabel 3-1: nyeri perut pada lansia" ; skos:editorialNote "Ambang usia perlu validasi pakar klinis"@id ;
+    ex:sparqlFile "rules/B08_nyeri_perut_lansia.rq" ; ex:layText "Nyeri perut pada usia lanjut lebih sering disebabkan kondisi serius"@id .
+ex:Rule_B09 a ex:Rule ; ex:ruleId "B09" ; ex:priority 2 ; ex:atDecisionPoint ex:DP_B ; ex:concludes ex:ESI_2 ;
+    ex:ifText "Nyeri perut (keluhan atau lokasi di wilayah perut) DAN hamil atau mungkin hamil"@id ; ex:thenText "Kandidat ESI 2 (curiga kehamilan ektopik)"@id ;
+    dcterms:source ex:Src_ESIv4 ; dcterms:bibliographicCitation "Gilboy 2012, Tabel 3-1: nyeri perut pada kehamilan muda" ;
+    ex:sparqlFile "rules/B09_nyeri_perut_hamil.rq" ; ex:layText "Nyeri perut pada orang yang hamil atau mungkin hamil"@id .
+ex:Rule_B10 a ex:Rule ; ex:ruleId "B10" ; ex:priority 2 ; ex:atDecisionPoint ex:DP_B ; ex:concludes ex:ESI_2 ;
+    ex:ifText "Mual, muntah, atau diare DAN penanda risiko metabolik (diabetes atau insulin)"@id ; ex:thenText "Kandidat ESI 2 (risiko ketoasidosis)"@id ;
+    dcterms:source ex:Src_ESIv4 ; dcterms:bibliographicCitation "Gilboy 2012, Tabel 3-1: pasien diabetes dengan muntah" ;
+    ex:sparqlFile "rules/B10_muntah_diabetes.rq" ; ex:layText "Muntah atau diare pada penderita diabetes dapat mengganggu kadar gula darah"@id .
+ex:Rule_B11 a ex:Rule ; ex:ruleId "B11" ; ex:priority 2 ; ex:atDecisionPoint ex:DP_B ; ex:concludes ex:ESI_2 ;
+    ex:ifText "Sakit kepala DAN muncul mendadak"@id ; ex:thenText "Kandidat ESI 2 (curiga perdarahan otak)"@id ;
+    dcterms:source ex:Src_ESIv4 ; dcterms:bibliographicCitation "Gilboy 2012, Tabel 3-1: sakit kepala terhebat yang mendadak" ;
+    ex:sparqlFile "rules/B11_sakit_kepala_mendadak.rq" ; ex:layText "Sakit kepala yang muncul tiba-tiba perlu segera diperiksa"@id .
+ex:Rule_B12 a ex:Rule ; ex:ruleId "B12" ; ex:priority 2 ; ex:atDecisionPoint ex:DP_B ; ex:concludes ex:ESI_2 ;
+    ex:ifText "Nyeri berlokasi di dada DAN penanda risiko kardiovaskular (penyakit jantung, hipertensi, diabetes, stroke)"@id ; ex:thenText "Kandidat ESI 2 (curiga sindrom koroner akut)"@id ;
+    dcterms:source ex:Src_ESIv4 ; dcterms:bibliographicCitation "Gilboy 2012, Bab 3: nyeri dada dengan faktor risiko jantung" ; skos:editorialNote "Perlu validasi pakar klinis"@id ;
+    ex:sparqlFile "rules/B12_nyeri_dada_risiko_jantung.rq" ; ex:layText "Nyeri di dada pada orang dengan penyakit jantung, darah tinggi, atau diabetes"@id .
+ex:Rule_G02 a ex:Rule ; ex:ruleId "G02" ; ex:priority 5 ; ex:concludes ex:Alert_StrokeWindow ;
+    ex:ifText "Tanda stroke DAN onset <= 4,5 jam"@id ; ex:thenText "Tampilkan peringatan jendela trombolisis (tidak mengubah ESI)"@id ;
+    dcterms:source ex:Src_AHAStroke ; dcterms:bibliographicCitation "Powers 2019 (AHA/ASA), jendela alteplase 4,5 jam" ;
+    ex:sparqlFile "rules/G02_jendela_stroke.rq" ; ex:layText "Tanda stroke yang baru muncul: setiap menit sangat berarti"@id .
+
+# Pertanyaan baru (penjelasan WHY)
+ex:Q_Onset a ex:Question ; ex:askOrder 7 ; ex:slot "onset" ;
+    ex:questionText "Sejak kapan keluhan muncul, dan apakah muncul mendadak?"@id ; ex:neededBy ex:Rule_B11 , ex:Rule_G02 .
+ex:Q_PainSite a ex:Question ; ex:askOrder 8 ; ex:slot "pain_sites" ;
+    ex:questionText "Di bagian tubuh mana nyerinya?"@id ; ex:neededBy ex:Rule_B08 , ex:Rule_B09 , ex:Rule_B12 .
+ex:Q_History a ex:Question ; ex:askOrder 9 ; ex:slot "history" ;
+    ex:questionText "Apakah ada riwayat penyakit, obat rutin, alergi berat, atau kehamilan?"@id ;
+    ex:neededBy ex:Rule_B06 , ex:Rule_B07 , ex:Rule_B09 , ex:Rule_B10 , ex:Rule_B12 .

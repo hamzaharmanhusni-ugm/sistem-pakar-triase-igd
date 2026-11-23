@@ -1,0 +1,18 @@
+# B09 (Gilboy 2012, Tabel 3-1): IF nyeri perut (keluhan atau lokasi di bawah Region_Abdomen) AND hamil/mungkin hamil THEN kandidat ESI 2
+PREFIX ex: <http://example.org/triage/>
+PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
+PREFIX prov: <http://www.w3.org/ns/prov#>
+INSERT {
+  ?case ex:candidateESI ex:ESI_2 .
+  ?inf a ex:Inference ; ex:usedRule ex:Rule_B09 ; ex:aboutCase ?case ; ex:concluded ex:ESI_2 ; prov:used ?src , ?ps ; ex:reason ?why .
+}
+WHERE {
+  ?case a ex:TriageCase ; ex:ofPatient ?pt .
+  ?pt ex:pregnancyStatus ?ps . FILTER(?ps IN (ex:Preg_Yes, ex:Preg_Possible))
+  ?ps skos:prefLabel ?pl .
+  { ?case ex:presentsWith ex:AbdominalPain . BIND(ex:AbdominalPain AS ?src) }
+  UNION
+  { ?case ex:painSite ?src . ?src skos:broader* ex:Region_Abdomen }
+  BIND(IRI(CONCAT(STR(?case), "_inf_B09")) AS ?inf)
+  BIND(CONCAT("Nyeri perut dengan status kehamilan: ", STR(?pl), " (curiga kehamilan ektopik)") AS ?why)
+}

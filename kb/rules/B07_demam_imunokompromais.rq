@@ -1,0 +1,15 @@
+# B07 (Gilboy 2012, Bab 3 dan Tabel 3-1): IF (demam OR suhu >= 38,0) AND penanda imunokompromais THEN kandidat ESI 2
+PREFIX ex: <http://example.org/triage/>
+PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
+PREFIX prov: <http://www.w3.org/ns/prov#>
+INSERT {
+  ?case ex:candidateESI ex:ESI_2 .
+  ?inf a ex:Inference ; ex:usedRule ex:Rule_B07 ; ex:aboutCase ?case ; ex:concluded ex:ESI_2 ; prov:used ?x ; ex:reason ?why .
+}
+WHERE {
+  ?case a ex:TriageCase ; ex:ofPatient ?pt .
+  FILTER(EXISTS { ?case ex:presentsWith ex:Fever } || EXISTS { ?case ex:temperatureC ?t FILTER(?t >= 38.0) })
+  ?pt ex:hasCondition|ex:takesMedication ?x . ?x ex:riskFlag ex:Risk_Immunocompromised ; skos:prefLabel ?l .
+  BIND(IRI(CONCAT(STR(?case), "_inf_B07_", STRAFTER(STR(?x), "triage/"))) AS ?inf)
+  BIND(CONCAT("Demam pada pasien imunokompromais: ", STR(?l)) AS ?why)
+}

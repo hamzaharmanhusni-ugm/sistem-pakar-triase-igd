@@ -36,6 +36,19 @@ CASES = [
     ('D01 batas usia 36 bulan masuk 3-8 th', dict(age_months=36, hr=150, resources=R3, resources_assessed=True), 2, {'D01'}),
     ('F01 qSOFA 2', dict(age_years=60, rr=24, sbp=95, avpu='A', resources_assessed=True), 2, {'F01'}),
     ('F01 tidak untuk anak', dict(age_years=10, rr=24, sbp=95, resources_assessed=True), 2, {'D01'}),
+    # v2.2: keluhan + konteks pasien (riwayat, obat, kehamilan, onset, lokasi nyeri)
+    ('B06 kepala terbentur + pengencer darah', dict(age_years=70, findings=['MinorHeadInjury'], medications=['Med_Anticoagulant'], resources_assessed=True), 2, {'B06'}),
+    ('B06 tanpa pengencer darah', dict(age_years=70, findings=['MinorHeadInjury'], resources=['Res_CT_MRI_USG'], resources_assessed=True), 4, set()),
+    ('B07 demam + kemoterapi', dict(age_years=50, temp=38.4, medications=['Med_Chemo'], resources_assessed=True), 2, {'B07'}),
+    ('B07 batas suhu 37,9', dict(age_years=50, temp=37.9, medications=['Med_Chemo'], resources_assessed=True), 5, set()),
+    ('B08 lokasi perut kanan bawah, 72 th', dict(age_years=72, pain_sites=['Region_RLQ'], resources_assessed=True), 2, {'B08'}),
+    ('B08 batas usia 64', dict(age_years=64, findings=['AbdominalPain'], resources_assessed=True), 5, set()),
+    ('B09 nyeri panggul + mungkin hamil', dict(age_years=25, sex='Sex_F', pregnancy='Preg_Possible', pain_sites=['Region_Pelvis'], resources_assessed=True), 2, {'B09'}),
+    ('B09 tidak hamil', dict(age_years=25, sex='Sex_F', pregnancy='Preg_No', findings=['AbdominalPain'], resources_assessed=True), 5, set()),
+    ('B10 muntah + diabetes', dict(age_years=40, findings=['VomitingDiarrhea'], conditions=['Cond_Diabetes'], resources_assessed=True), 2, {'B10'}),
+    ('B11 sakit kepala mendadak', dict(age_years=40, findings=['Headache'], onset_sudden=True, resources_assessed=True), 2, {'B11'}),
+    ('B11 sakit kepala perlahan', dict(age_years=40, findings=['Headache'], onset_sudden=False, resources_assessed=True), 5, set()),
+    ('B12 nyeri dada + hipertensi', dict(age_years=55, pain_sites=['Region_Chest'], conditions=['Cond_Hypertension'], resources_assessed=True), 2, {'B12'}),
 ]
 
 
@@ -77,6 +90,13 @@ def test_steps_record_forward_chaining():
     assert (':Uji', ':candidateESI', ':ESI_2') in [tuple(x) for x in e01['added']]
 
 
+def test_g02_stroke_window_alert_only_within_4_5_hours():
+    near = engine.infer(dict(age_years=67, findings=['StrokeSigns'], onset='Onset_1to4h', resources=[]), 'Uji')
+    far = engine.infer(dict(age_years=67, findings=['StrokeSigns'], onset='Onset_4to24h', resources=[]), 'Uji')
+    assert 'G02' in {t['rule'] for t in near['trace']} and near['alerts']
+    assert 'G02' not in {t['rule'] for t in far['trace']} and near['esi'] == far['esi'] == 2
+
+
 def test_owl_transitive_acuity_order():
     from app.engine import EX
     assert (EX.ESI_1, EX.moreAcuteThan, EX.ESI_5) in engine.knowledge_base()
@@ -84,7 +104,7 @@ def test_owl_transitive_acuity_order():
 
 def test_agenda_read_from_graph():
     rules, final = engine.agenda()
-    assert final[0] == 'Z01' and len(rules) == 15
+    assert final[0] == 'Z01' and len(rules) == 23
     assert [r[1] for r in rules] == sorted(r[1] for r in rules)
 
 
@@ -102,6 +122,13 @@ def test_shacl_case_graph_valid():
     data = engine.case_graph('Uji', dict(age_years=45, hr=128, pain=8, findings=['ChestPainACS'], resources=['Res_Lab']))
     ok, _, report = validate(data, shacl_graph=Graph().parse(engine.KB / 'shapes.ttl'), ont_graph=kb, inference='rdfs')
     assert ok, report
+    pt = engine.case_graph('Uji', dict(age_years=30, conditions=['Cond_Diabetes'], pregnancy='Preg_No', pain_sites=['Region_RUQ'], onset='Onset_lt1h'))
+    # tanpa inferensi RDFS: rdfs:range ex:Condition akan MENURUNKAN Fever sebagai Condition (dunia terbuka), bukan menolaknya
+    ok, _, report = validate(pt + kb, shacl_graph=Graph().parse(engine.KB / 'shapes.ttl'), inference='none')
+    assert ok, report
+    wrong = engine.case_graph('Uji', dict(age_years=30, conditions=['Fever']))  # temuan bukan riwayat penyakit
+    ok, _, _ = validate(wrong + kb, shacl_graph=Graph().parse(engine.KB / 'shapes.ttl'), inference='none')
+    assert not ok
     bad = engine.case_graph('Uji', dict(hr=400))
     ok, _, _ = validate(bad, shacl_graph=Graph().parse(engine.KB / 'shapes.ttl'), ont_graph=kb, inference='rdfs')
     assert not ok

@@ -1,0 +1,16 @@
+# B08 (Gilboy 2012, Bab 3 dan Tabel 3-1): IF nyeri perut (keluhan atau lokasi di bawah Region_Abdomen) AND usia >= 65 THEN kandidat ESI 2
+PREFIX ex: <http://example.org/triage/>
+PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
+PREFIX prov: <http://www.w3.org/ns/prov#>
+INSERT {
+  ?case ex:candidateESI ex:ESI_2 .
+  ?inf a ex:Inference ; ex:usedRule ex:Rule_B08 ; ex:aboutCase ?case ; ex:concluded ex:ESI_2 ; prov:used ?src ; ex:reason ?why .
+}
+WHERE {
+  ?case a ex:TriageCase ; ex:age ?y . FILTER(?y >= 65)
+  { ?case ex:presentsWith ex:AbdominalPain . BIND(ex:AbdominalPain AS ?src) }
+  UNION
+  { ?case ex:painSite ?src . ?src skos:broader* ex:Region_Abdomen }
+  BIND(IRI(CONCAT(STR(?case), "_inf_B08")) AS ?inf)
+  BIND(CONCAT("Nyeri perut pada usia ", STR(?y), " tahun (ambang >= 65)") AS ?why)
+}

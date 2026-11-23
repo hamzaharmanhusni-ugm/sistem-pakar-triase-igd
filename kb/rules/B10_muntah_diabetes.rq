@@ -1,0 +1,14 @@
+# B10 (Gilboy 2012, Tabel 3-1): IF mual/muntah/diare AND penanda risiko metabolik THEN kandidat ESI 2
+PREFIX ex: <http://example.org/triage/>
+PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
+PREFIX prov: <http://www.w3.org/ns/prov#>
+INSERT {
+  ?case ex:candidateESI ex:ESI_2 .
+  ?inf a ex:Inference ; ex:usedRule ex:Rule_B10 ; ex:aboutCase ?case ; ex:concluded ex:ESI_2 ; prov:used ex:VomitingDiarrhea , ?x ; ex:reason ?why .
+}
+WHERE {
+  ?case a ex:TriageCase ; ex:presentsWith ex:VomitingDiarrhea ; ex:ofPatient ?pt .
+  ?pt ex:hasCondition|ex:takesMedication ?x . ?x ex:riskFlag ex:Risk_Metabolic ; skos:prefLabel ?l .
+  BIND(IRI(CONCAT(STR(?case), "_inf_B10_", STRAFTER(STR(?x), "triage/"))) AS ?inf)
+  BIND(CONCAT("Muntah atau diare pada pasien dengan risiko metabolik: ", STR(?l)) AS ?why)
+}

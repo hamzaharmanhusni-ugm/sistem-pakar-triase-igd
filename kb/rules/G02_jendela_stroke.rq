@@ -1,0 +1,13 @@
+# G02 (Powers 2019, AHA/ASA): IF tanda stroke AND onset <= 4,5 jam THEN peringatan jendela trombolisis (tidak mengubah ESI)
+PREFIX ex: <http://example.org/triage/>
+PREFIX prov: <http://www.w3.org/ns/prov#>
+INSERT {
+  ?case ex:hasAlert ex:Alert_StrokeWindow .
+  ?inf a ex:Inference ; ex:usedRule ex:Rule_G02 ; ex:aboutCase ?case ; ex:concluded ex:Alert_StrokeWindow ; prov:used ex:StrokeSigns , ?o ; ex:reason ?why .
+}
+WHERE {
+  ?case a ex:TriageCase ; ex:presentsWith ex:StrokeSigns ; ex:onset ?o .
+  ?o ex:maxHours ?h . FILTER(?h <= 4.5)
+  BIND(IRI(CONCAT(STR(?case), "_inf_G02")) AS ?inf)
+  BIND(CONCAT("Tanda stroke dengan onset paling lama ", STR(?h), " jam: masih dalam jendela trombolisis 4,5 jam") AS ?why)
+}

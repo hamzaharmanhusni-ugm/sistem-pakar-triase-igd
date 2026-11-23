@@ -70,6 +70,22 @@ def case_graph(case, facts):
         g.add((c, EX.resourcesAssessed, Literal(True)))
     if facts.get('self_report'):
         g.add((c, EX.reportedByLayperson, Literal(True)))
+    for s in facts.get('pain_sites', []):
+        g.add((c, EX.painSite, EX[s]))
+    if facts.get('onset'):
+        g.add((c, EX.onset, EX[facts['onset']]))
+    if facts.get('onset_sudden') is not None:
+        g.add((c, EX.onsetSudden, Literal(bool(facts['onset_sudden']))))
+    # pasien terpisah dari kunjungan; IRI diawali IRI kasus agar ikut dibersihkan bersama working memory
+    pt = EX[f'{case}_pasien']
+    g.add((pt, RDF.type, EX.Patient))
+    g.add((c, EX.ofPatient, pt))
+    for k, p in [('conditions', EX.hasCondition), ('medications', EX.takesMedication)]:
+        for x in facts.get(k, []):
+            g.add((pt, p, EX[x]))
+    for k, p in [('pregnancy', EX.pregnancyStatus), ('sex', EX.sex)]:
+        if facts.get(k):
+            g.add((pt, p, EX[facts[k]]))
     return g
 
 
@@ -258,6 +274,21 @@ def questions():
         OPTIONAL { ?q ex:skipIfAcuityAtMost ?skip } } GROUP BY ?q ?order ?slot ?text ?skip ORDER BY ?order'''
     return [{'slot': str(r.slot), 'text': str(r.text), 'skip_if_at_most': int(r.skip) if r.skip else None,
              'needed_by': sorted(str(r.rules).split(','))} for r in knowledge_base().query(q)]
+
+
+VOCAB = {'conditions': 'Condition', 'medications': 'MedicationClass', 'pain_sites': 'BodyRegion', 'onset': 'OnsetCategory',
+         'pregnancy': 'PregnancyStatus', 'sex': 'Sex', 'resources': 'Resource'}
+
+
+@lru_cache(maxsize=None)
+def vocab():
+    """Pilihan jawaban yang dibaca antarmuka dari knowledge graph: {slot: [{id, label}]}, temuan per kelas."""
+    q = PREFIX + 'SELECT ?x ?l WHERE { ?x a ?cls ; skos:prefLabel ?l . OPTIONAL { ?x ex:maxHours ?h } } ORDER BY ?h ?x'
+    out = {slot: [{'id': str(r.x).split('/')[-1], 'label': str(r.l)} for r in knowledge_base().query(q, initBindings={'cls': EX[c]})]
+           for slot, c in VOCAB.items()}
+    out['findings'] = {c: [{'id': str(r.x).split('/')[-1], 'label': str(r.l)} for r in knowledge_base().query(q, initBindings={'cls': EX[c]})]
+                       for c in ['LifeSavingIndicator', 'HighRiskSituation', 'AlteredMentalStatus', 'Symptom', 'RiskFactor']}
+    return out
 
 
 @lru_cache(maxsize=None)

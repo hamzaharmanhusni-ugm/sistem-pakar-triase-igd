@@ -1,5 +1,6 @@
 """API chatbot sistem pakar triase IGD. Jalankan: uvicorn app.main:app --port 8000"""
 import uuid
+from typing import Literal
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -67,6 +68,21 @@ class AssessIn(BaseModel):
     sbp: float | None = Field(None, ge=40, le=300)
     temp: float | None = Field(None, ge=30, le=45)
     pain: int | None = Field(None, ge=0, le=10)
+    # anamnesis terstruktur (v2.2): ID individu di knowledge graph, divalidasi terhadap /api/vocab
+    mode: Literal['lay', 'nurse'] = 'lay'
+    sex: str | None = None
+    pregnancy: str | None = None
+    conditions: list[str] = []
+    medications: list[str] = []
+    pain_sites: list[str] = []
+    onset: str | None = None
+    onset_sudden: bool | None = None
+    resources: list[str] = []  # hanya dipakai mode perawat; mode awam diperkirakan aturan C00
+
+
+@app.get('/api/vocab')
+def vocab():
+    return engine.vocab()
 
 
 @app.post('/api/assess')
@@ -74,12 +90,21 @@ def assess(body: AssessIn):
     facts = body.model_dump()
     known = engine.lexicon('Finding')
     bad = [f for f in facts['findings'] if f not in known]
+    v = engine.vocab()
+    for slot in engine.VOCAB:
+        ids = {o['id'] for o in v[slot]}
+        got = facts[slot] if isinstance(facts[slot], list) else [facts[slot]] if facts[slot] else []
+        bad += [x for x in got if x not in ids]
     if bad:
-        raise HTTPException(422, f'Temuan tidak dikenal: {bad}')
+        raise HTTPException(422, f'Pilihan tidak dikenal: {bad}')
     if facts['age_years'] is None and facts['age_months'] is None:
         raise HTTPException(422, 'Usia wajib diisi.')
-    facts.update(resources=[], self_report=True)
-    r = engine.infer(facts, f'Mandiri_{uuid.uuid4().hex[:12]}')
+    nurse = facts.pop('mode') == 'nurse'
+    if nurse:  # perawat menilai resource sendiri (Decision Point C), termasuk "nol resource"
+        facts.update(resources_assessed=True)
+    else:
+        facts.update(resources=[], self_report=True)
+    r = engine.infer(facts, f'{"Triase" if nurse else "Mandiri"}_{uuid.uuid4().hex[:12]}')
     return {'result': r, 'narrative': (llm.narrate(r) if r['esi'] else None) or dialog.template_narrative(r), 'llm': llm.status()}
 
 

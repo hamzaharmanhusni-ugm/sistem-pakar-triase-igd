@@ -14,3 +14,18 @@ ex:TriageCaseShape a sh:NodeShape ;
         [ sh:path ex:painScore ; sh:maxCount 1 ; sh:minInclusive 0 ; sh:maxInclusive 10 ; sh:message "Skala nyeri 0-10." ] ,
         [ sh:path ex:needsResource ; sh:class ex:Resource ; sh:message "needsResource harus menunjuk individu ex:Resource." ] ,
         [ sh:path ex:presentsWith ; sh:class ex:Finding ; sh:message "presentsWith harus menunjuk individu ex:Finding." ] .
+
+# v2.2: pasien dan anamnesis terstruktur hanya boleh menunjuk individu yang dikenal knowledge graph.
+ex:PatientShape a sh:NodeShape ;
+    sh:targetClass ex:Patient ;
+    sh:property
+        [ sh:path ex:hasCondition ; sh:class ex:Condition ; sh:message "hasCondition harus menunjuk individu ex:Condition." ] ,
+        [ sh:path ex:takesMedication ; sh:class ex:MedicationClass ; sh:message "takesMedication harus menunjuk individu ex:MedicationClass." ] ,
+        [ sh:path ex:pregnancyStatus ; sh:maxCount 1 ; sh:class ex:PregnancyStatus ] ,
+        [ sh:path ex:sex ; sh:maxCount 1 ; sh:class ex:Sex ] .
+ex:CaseHistoryShape a sh:NodeShape ;
+    sh:targetClass ex:TriageCase ;
+    sh:property
+        [ sh:path ex:ofPatient ; sh:maxCount 1 ; sh:class ex:Patient ] ,
+        [ sh:path ex:painSite ; sh:class ex:BodyRegion ] ,
+        [ sh:path ex:onset ; sh:maxCount 1 ; sh:class ex:OnsetCategory ] .

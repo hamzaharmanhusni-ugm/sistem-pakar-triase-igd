@@ -16,8 +16,8 @@
 
 <http://example.org/triage> a owl:Ontology ;
     rdfs:label "Ontologi Sistem Pakar Triase IGD"@id ;
-    owl:versionInfo "2.1" ;
-    rdfs:comment "Versi 2.1: knowledge-centric. Konsep klinis sebagai individu berkategori, ambang dan resource sebagai data, aturan sebagai individu, penjelasan dengan PROV-O, statistik MC-MED sebagai bukti agregat."@id .
+    owl:versionInfo "2.2" ;
+    rdfs:comment "Versi 2.2: model pasien (riwayat, obat, kehamilan) dan anamnesis terstruktur (onset, lokasi nyeri). Versi 2.1: knowledge-centric. Konsep klinis sebagai individu berkategori, ambang dan resource sebagai data, aturan sebagai individu, penjelasan dengan PROV-O, statistik MC-MED sebagai bukti agregat."@id .
 
 # ---------------------------------------------------------------------
 # Kelas pengetahuan (tetap, berlaku untuk semua pasien)
@@ -151,4 +151,31 @@ ex:typicalResource a owl:ObjectProperty ; rdfs:domain ex:Finding ; rdfs:range ex
     rdfs:comment "Resource yang biasanya dibutuhkan untuk temuan ini."@id .
 ex:layText a owl:DatatypeProperty ; rdfs:domain ex:Rule ; rdfs:comment "Penjelasan aturan dalam bahasa awam."@id .
 ex:layTitle a owl:DatatypeProperty ; rdfs:domain ex:ESILevel .
+
+# ---------------------------------------------------------------------
+# v2.2: model pasien dan anamnesis terstruktur (audit klinis R1, R2, K2-K4)
+# Kasus (kunjungan) dipisah dari pasien: riwayat melekat pada pasien, keluhan dan tanda vital pada kasus.
+# ---------------------------------------------------------------------
+ex:Patient a owl:Class ; rdfs:label "Pasien"@id .
+ex:Condition a owl:Class ; rdfs:label "Riwayat penyakit atau kondisi kronis (dipetakan ke ICD-10)"@id .
+ex:MedicationClass a owl:Class ; rdfs:label "Golongan obat yang sedang diminum"@id .
+ex:RiskFlag a owl:Class ; rdfs:label "Penanda risiko yang dibaca aturan (mis. risiko perdarahan)"@id .
+ex:PregnancyStatus a owl:Class ; rdfs:label "Status kehamilan"@id .
+ex:Sex a owl:Class ; rdfs:label "Jenis kelamin"@id .
+ex:BodyRegion a owl:Class ; rdfs:label "Wilayah tubuh lokasi nyeri (hierarki skos:broader)"@id .
+ex:OnsetCategory a owl:Class ; rdfs:label "Rentang waktu sejak keluhan muncul"@id .
+
+ex:ofPatient a owl:ObjectProperty , owl:FunctionalProperty ; rdfs:domain ex:TriageCase ; rdfs:range ex:Patient .
+ex:hasCondition a owl:ObjectProperty ; rdfs:domain ex:Patient ; rdfs:range ex:Condition .
+ex:takesMedication a owl:ObjectProperty ; rdfs:domain ex:Patient ; rdfs:range ex:MedicationClass .
+ex:pregnancyStatus a owl:ObjectProperty , owl:FunctionalProperty ; rdfs:domain ex:Patient ; rdfs:range ex:PregnancyStatus .
+ex:sex a owl:ObjectProperty , owl:FunctionalProperty ; rdfs:domain ex:Patient ; rdfs:range ex:Sex .
+ex:riskFlag a owl:ObjectProperty ; rdfs:range ex:RiskFlag ;
+    rdfs:comment "Riwayat atau obat yang menaikkan risiko; aturan membaca penanda ini, bukan daftar penyakit satu per satu."@id .
+ex:painSite a owl:ObjectProperty ; rdfs:domain ex:TriageCase ; rdfs:range ex:BodyRegion .
+ex:onset a owl:ObjectProperty , owl:FunctionalProperty ; rdfs:domain ex:TriageCase ; rdfs:range ex:OnsetCategory .
+ex:onsetSudden a owl:DatatypeProperty ; rdfs:domain ex:TriageCase ; rdfs:range xsd:boolean ;
+    rdfs:comment "true bila keluhan muncul mendadak (hitungan detik sampai menit)."@id .
+ex:maxHours a owl:DatatypeProperty ; rdfs:domain ex:OnsetCategory ; rdfs:range xsd:decimal ;
+    rdfs:comment "Batas atas rentang onset (jam)."@id .
 ex:layAdvice a owl:DatatypeProperty ; rdfs:domain ex:ESILevel ; rdfs:comment "Saran tindakan untuk pasien/keluarga."@id .

@@ -31,7 +31,7 @@ class Session:
             'vitals': any(k in f for k in VITAL_KEYS),
             'pain': 'pain' in f,
             'resources': bool(f.get('resources_assessed')),
-        }[slot]
+        }.get(slot, True)  # ponytail: onset, lokasi nyeri, riwayat hanya ditanyakan di formulir terstruktur; tambah parser NLU bila chat perlu
 
     def next_question(self):
         top = min(self.result['candidates'], default=9)

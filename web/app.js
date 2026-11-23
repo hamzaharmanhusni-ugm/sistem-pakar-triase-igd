@@ -40,9 +40,15 @@ const DPS = [['A', 'Butuh pertolongan untuk menyelamatkan nyawa?'], ['B', 'Situa
 const MAPS = q => `https://www.google.com/maps/search/${encodeURIComponent(q)}`;
 
 /* ---------- state ---------- */
-const S = { step: 0, who: null, age: '', unit: 'tahun', danger: [], dangerNone: false, findings: [], pain: null, m: {}, result: null };
-const STEPS = ['welcome', 'age', 'danger', 'complaint', 'pain', 'measure', 'result'];
-const Q_STEPS = 5;
+const BLANK = () => ({ step: 0, mode: null, who: null, age: '', unit: 'tahun', danger: [], dangerNone: false, findings: [], pain: null, m: {}, result: null,
+  sex: null, preg: null, cond: [], meds: [], sites: [], onset: null, sudden: null, avpu: null, res: [] });
+const S = BLANK();
+const STEPS = ['welcome', 'age', 'danger', 'complaint', 'history', 'pain', 'measure', 'result', 'nurse'];
+const I = Object.fromEntries(STEPS.map((k, i) => [k, i]));
+const Q_STEPS = 6;
+let VOC = null, VL = {};  // pilihan jawaban dari knowledge graph (/api/vocab), VL: id -> label
+const nurse = () => S.mode === 'nurse';
+const toggle = (arr, v) => arr.includes(v) ? arr.filter(x => x !== v) : [...arr, v];
 const WHO = { self: ['Anda', 'Anda'], child: ['anak Anda', 'Anak Anda'], adult: ['orang yang sakit', 'Orang yang sakit'] };
 const subj = (cap = false) => (WHO[S.who] || WHO.adult)[cap ? 1 : 0];
 const MIN_AGE = { self: 12, adult: 18 };  // ponytail: anak di bawah 12 tahun diisi orang tua lewat "Anak saya"
@@ -56,6 +62,7 @@ function ageYears() {
 function ageOk() {
   const v = ageVal();
   if (isNaN(v) || v < 0) return false;
+  if (nurse()) return S.unit === 'tahun' ? v <= 120 : S.unit === 'bulan' ? v <= 36 : v <= 1095;
   if (S.who === 'child') return S.unit === 'tahun' ? v <= 17 : S.unit === 'bulan' ? v <= 36 : v <= 1095;
   return S.unit === 'tahun' && v >= MIN_AGE[S.who] && v <= 120;
 }
@@ -82,8 +89,17 @@ function facts() {
     else f.age_months = Math.min(36, S.unit === 'bulan' ? v : +(v / 30.4).toFixed(2));
   }
   if (S.pain !== null) f.pain = S.pain;
-  for (const k of ['temp', 'hr', 'rr', 'spo2']) if (S.m[k]) f[k] = parseFloat(String(S.m[k]).replace(',', '.'));
+  for (const k of ['temp', 'hr', 'rr', 'spo2', 'sbp']) if (S.m[k]) f[k] = parseFloat(String(S.m[k]).replace(',', '.'));
+  Object.assign(f, { conditions: S.cond, medications: S.meds, pain_sites: S.sites });
+  for (const [k, v] of [['onset', S.onset], ['onset_sudden', S.sudden], ['pregnancy', S.preg], ['sex', S.preg && S.preg !== 'Preg_No' ? 'Sex_F' : S.sex]]) if (v !== null) f[k] = v;
+  if (nurse()) Object.assign(f, { mode: 'nurse', resources: S.res }, S.avpu ? { avpu: S.avpu } : {});
   return f;
+}
+function vitalError() {
+  const lim = { temp: [30, 45, 'Suhu', '°C'], hr: [20, 300, 'Denyut nadi', 'kali/menit'], rr: [4, 100, 'Napas', 'kali/menit'], spo2: [50, 100, 'Kadar oksigen', '%'], sbp: [40, 300, 'Tekanan darah sistolik', 'mmHg'] };
+  const val = k => parseFloat(String(S.m[k]).replace(',', '.'));
+  const bad = Object.entries(lim).find(([k, [lo, hi]]) => S.m[k] && !(val(k) >= lo && val(k) <= hi));
+  return bad ? `${bad[1][2]} sepertinya tidak sesuai (seharusnya antara ${bad[1][0]} dan ${bad[1][1]} ${bad[1][3]}). Periksa lagi atau kosongkan.` : '';
 }
 
 async function assess() {
@@ -112,16 +128,21 @@ const cta = (label, ok, hint, act = 'next', cls = 'primary') =>
 /* ---------- layar ---------- */
 const VIEWS = {
   welcome: () => `<div class="welcome">
-      <h1>Sakit mendadak? Cek dulu, perlu ke IGD atau cukup ke klinik.</h1>
-      <p class="lead">Jawab 5 pertanyaan singkat. Kami menilai tingkat kegawatan dengan aturan triase yang digunakan IGD rumah sakit, lalu menjelaskan alasannya.</p>
+      <h1>Triase IGD dengan sistem pakar ESI.</h1>
+      <p class="lead">Perawat menentukan level ESI 1-5 dari formulir triase lengkap. Pasien atau keluarga dapat memeriksa perlu ke IGD atau cukup ke klinik. Setiap hasil disertai alasan dan sumber aturannya.</p>
       <div class="q-body">
-        <p class="sub-label">Siapa yang sedang sakit?</p>
+        <p class="sub-label">Anda menggunakan aplikasi ini sebagai</p>
+        <div class="roles">
+          <button class="opt" type="button" data-act="mode" data-v="nurse" ${pressed(S.mode === 'nurse')}>${tick}<span>Perawat triase<small>Formulir lengkap: keluhan, onset, riwayat, tanda vital, AVPU, resource</small></span></button>
+          <button class="opt" type="button" data-act="mode" data-v="lay" ${pressed(S.mode === 'lay')}>${tick}<span>Pasien atau keluarga<small>6 pertanyaan sederhana, hasil berupa saran tindakan</small></span></button>
+        </div>
+        ${S.mode === 'lay' ? `<p class="sub-label">Siapa yang sedang sakit?</p>
         <div class="who">
           ${[['self', 'Saya sendiri'], ['child', 'Anak saya'], ['adult', 'Orang lain (dewasa)']].map(([k, t]) =>
             `<button class="opt" type="button" data-act="who" data-v="${k}" ${pressed(S.who === k)}>${tick}${t}</button>`).join('')}
-        </div>
+        </div>` : ''}
       </div>
-      ${cta('Mulai cek', !!S.who, 'Pilih dulu siapa yang sedang sakit.')}</div>`,
+      ${S.mode === 'nurse' ? cta('Buka formulir triase', !!VOC, 'Memuat pilihan dari knowledge graph...', 'nurse-open') : cta('Mulai cek', S.mode === 'lay' && !!S.who, S.mode ? 'Pilih dulu siapa yang sedang sakit.' : 'Pilih peran Anda.')}</div>`,
 
   age: () => `${progress()}
     <h1 class="q-title">Berapa usia ${subj()}?</h1>
@@ -162,6 +183,29 @@ const VIEWS = {
     ${cta('Lanjut', S.findings.length > 0, 'Pilih minimal satu keluhan.')}`;
   },
 
+  history: () => {
+    const chips = (list, sel, act) => list.map(o => `<button class="chip" type="button" data-act="${act}" data-v="${o.id}" ${pressed(sel(o.id))}>${esc(o.label)}</button>`).join('');
+    const canPregnant = S.who !== 'child' && (ageYears() ?? 0) >= 12 && (ageYears() ?? 0) <= 55;
+    if (!VOC) return `${progress()}<p class="q-help">Memuat pilihan...</p>`;
+    return `${progress()}
+    <h1 class="q-title">Sejak kapan, dan adakah riwayat penyakit?</h1>
+    <p class="q-help">Riwayat penyakit dan obat yang diminum dapat membuat keluhan yang sama menjadi lebih berbahaya. Lewati yang tidak diketahui.</p>
+    <div class="q-body">
+      <p class="sub-label">Sejak kapan keluhan dirasakan?</p>
+      <div class="chips">${chips(VOC.onset, id => S.onset === id, 'onset')}</div>
+      <p class="sub-label">Apakah muncul tiba-tiba (dalam hitungan detik atau menit)?</p>
+      <div class="seg" role="group" aria-label="Muncul tiba-tiba">${[[true, 'Ya, tiba-tiba'], [false, 'Perlahan'], [null, 'Tidak tahu']].map(([v, t]) =>
+        `<button type="button" data-act="sudden" data-v="${v}" ${pressed(S.sudden === v)}>${t}</button>`).join('')}</div>
+      <p class="sub-label">Riwayat penyakit</p>
+      <div class="chips">${chips(VOC.conditions, id => S.cond.includes(id), 'cond')}</div>
+      <p class="sub-label">Obat yang rutin diminum</p>
+      <div class="chips">${chips(VOC.medications, id => S.meds.includes(id), 'med')}</div>
+      ${canPregnant ? `<p class="sub-label">Kehamilan (bila perempuan)</p>
+      <div class="chips">${chips(VOC.pregnancy, id => S.preg === id, 'preg')}</div>` : ''}
+    </div>
+    ${cta('Lanjut', true)}`;
+  },
+
   pain: () => {
     const toddler = S.who === 'child' && (ageYears() ?? 9) < 4;
     if (toddler) return `${progress()}
@@ -177,6 +221,8 @@ const VIEWS = {
           `<button type="button" data-act="pain" data-v="${i}" style="--c:${PAIN_COLOR(i)}" ${pressed(S.pain === i)} aria-label="${i}: ${PAIN_WORD[i]}">${i}</button>`).join('')}</div>
         <div class="pain-words"><span>Tidak nyeri</span><span>Terberat</span></div>
         <p class="pain-now">${S.pain === null ? '' : `${S.pain}: ${PAIN_WORD[S.pain]}`}</p>
+        ${S.pain > 0 && VOC ? `<p class="sub-label">Di bagian mana sakitnya? (boleh lebih dari satu)</p>
+        <div class="chips">${VOC.pain_sites.map(o => `<button class="chip" type="button" data-act="site" data-v="${o.id}" ${pressed(S.sites.includes(o.id))}>${esc(o.label)}</button>`).join('')}</div>` : ''}
       </div>
       ${cta('Lanjut', S.pain !== null, 'Pilih angka nyeri.')}`;
   },
@@ -201,7 +247,62 @@ const VIEWS = {
       <button class="skip" type="button" data-act="finish-skip">Lewati, belum mengukur</button></div>`;
   },
 
+  nurse: () => {
+    if (!VOC) return '<p class="q-help">Memuat pilihan dari knowledge graph...</p>';
+    const chips = (list, sel, act, alarm) => list.map(o => `<button class="chip ${alarm ? 'alarm' : ''}" type="button" data-act="${act}" data-v="${o.id}" ${pressed(sel(o.id))}>${esc(o.label)}</button>`).join('');
+    const fx = c => chips(VOC.findings[c], id => S.findings.includes(id), 'finding', c !== 'Symptom' && c !== 'RiskFactor');
+    const vit = [['temp', 'Suhu', '°C'], ['hr', 'Nadi', 'x/menit'], ['rr', 'Napas', 'x/menit'], ['spo2', 'SpO2', '%'], ['sbp', 'TD sistolik', 'mmHg']];
+    const [hr, rr] = safeLimits();
+    return `<div class="nform">
+    <div class="progress"><button class="back" type="button" data-act="back" aria-label="Kembali"><svg class="ic"><use href="#i-back"/></svg></button><span class="count">Mode perawat triase</span></div>
+    <h1 class="q-title">Formulir triase ESI</h1>
+    <p class="q-help">Isi sesuai pengkajian. Kolom kosong dianggap belum dinilai, bukan normal.</p>
+
+    <section class="nsec"><h2><i>1</i>Pasien</h2>
+      <div class="age">
+        <input class="field" id="age" inputmode="decimal" autocomplete="off" placeholder="Usia" value="${esc(S.age)}" aria-label="Usia">
+        <div class="seg" role="group" aria-label="Satuan usia">${['tahun', 'bulan', 'hari'].map(u => `<button type="button" data-act="unit" data-v="${u}" ${pressed(S.unit === u)}>${u}</button>`).join('')}</div>
+      </div>
+      <div class="seg" role="group" aria-label="Jenis kelamin">${VOC.sex.map(o => `<button type="button" data-act="sex" data-v="${o.id}" ${pressed(S.sex === o.id)}>${esc(o.label)}</button>`).join('')}</div>
+      ${S.sex === 'Sex_F' ? `<div class="chips">${chips(VOC.pregnancy, id => S.preg === id, 'preg')}</div>` : ''}
+    </section>
+
+    <section class="nsec"><h2><i>A</i>Butuh intervensi penyelamatan nyawa?</h2>
+      <div class="chips">${fx('LifeSavingIndicator')}</div></section>
+
+    <section class="nsec"><h2><i>B</i>Situasi risiko tinggi atau perubahan kesadaran</h2>
+      <div class="chips">${fx('HighRiskSituation')}${fx('AlteredMentalStatus')}</div></section>
+
+    <section class="nsec"><h2><i>2</i>Keluhan lain</h2>
+      <div class="chips">${fx('Symptom')}${fx('RiskFactor')}</div></section>
+
+    <section class="nsec"><h2><i>3</i>Onset dan nyeri (OPQRST)</h2>
+      <div class="chips">${chips(VOC.onset, id => S.onset === id, 'onset')}</div>
+      <div class="seg" role="group" aria-label="Onset">${[[true, 'Mendadak'], [false, 'Perlahan'], [null, 'Belum dinilai']].map(([v, t]) => `<button type="button" data-act="sudden" data-v="${v}" ${pressed(S.sudden === v)}>${t}</button>`).join('')}</div>
+      <p class="sub-label">Skala nyeri (NRS 0-10)</p>
+      <div class="pain" role="group" aria-label="Skala nyeri">${Array.from({ length: 11 }, (_, i) => `<button type="button" data-act="pain" data-v="${i}" style="--c:${PAIN_COLOR(i)}" ${pressed(S.pain === i)}>${i}</button>`).join('')}</div>
+      <p class="sub-label">Lokasi nyeri</p>
+      <div class="chips">${chips(VOC.pain_sites, id => S.sites.includes(id), 'site')}</div></section>
+
+    <section class="nsec"><h2><i>4</i>Riwayat (SAMPLE)</h2>
+      <p class="sub-label">Riwayat penyakit dan alergi</p><div class="chips">${chips(VOC.conditions, id => S.cond.includes(id), 'cond')}</div>
+      <p class="sub-label">Obat</p><div class="chips">${chips(VOC.medications, id => S.meds.includes(id), 'med')}</div></section>
+
+    <section class="nsec"><h2><i>D</i>Tanda vital dan kesadaran</h2>
+      <div class="vitals">${vit.map(([k, t, u]) => `<label><span>${t}</span><input inputmode="decimal" data-m="${k}" value="${esc(S.m[k] ?? '')}" aria-label="${t} (${u})"><em>${u}</em></label>`).join('')}</div>
+      <p class="fine">Batas danger zone usia ini: nadi &gt; ${hr}, napas &gt; ${rr}, SpO2 &lt; 92.</p>
+      <div class="seg" role="group" aria-label="AVPU">${[['A', 'A: sadar'], ['V', 'V: suara'], ['P', 'P: nyeri'], ['U', 'U: tidak respons']].map(([v, t]) => `<button type="button" data-act="avpu" data-v="${v}" ${pressed(S.avpu === v)}>${t}</button>`).join('')}</div></section>
+
+    <section class="nsec"><h2><i>C</i>Perkiraan resource</h2>
+      <p class="q-help">Jenis resource yang diperkirakan dibutuhkan. Kosongkan bila cukup anamnesis, pemeriksaan fisik, atau obat oral.</p>
+      <div class="chips">${chips(VOC.resources, id => S.res.includes(id), 'res')}</div></section>
+
+    <p class="note warn" id="measure-err"></p>
+    ${cta('Tentukan level ESI', ageOk(), 'Isi usia pasien untuk melanjutkan.', 'nurse-go')}</div>`;
+  },
+
   result: () => {
+    if (nurse()) return nurseResult();
     const r = S.result;
     if (!r || !r.esi) return `<div class="screen"><h1 class="q-title">Hasil belum tersedia.</h1>${cta('Mulai lagi', true, '', 'restart')}</div>`;
     const l = r.esi;
@@ -220,7 +321,7 @@ const VIEWS = {
       <section class="why-box">
         <h2>Mengapa hasilnya begini?</h2>
         <ol class="reasons">${reasons.map((t, i) => `<li style="--i:${i}"><span class="n">${i + 1}</span><p>${esc(t)}</p></li>`).join('')}</ol>
-        ${r.alerts.filter(a => !a.startsWith('Resource')).map(a => `<p class="alert-box">${esc(a.replace('Shock index >= 1,0: waspadai syok tersembunyi, evaluasi ulang tanda vital.', 'Perbandingan nadi dan tekanan darah menunjukkan kemungkinan syok. Sampaikan hal ini kepada petugas.'))}</p>`).join('')}
+        ${r.alerts.filter(a => !a.startsWith('Resource')).map(a => `<p class="alert-box">${esc(a.replace('Shock index >= 1,0: waspadai syok tersembunyi, evaluasi ulang tanda vital.', 'Perbandingan nadi dan tekanan darah menunjukkan kemungkinan syok. Sampaikan hal ini kepada petugas.').replace(/^Tanda stroke.*/, 'Tanda stroke yang muncul kurang dari 4,5 jam: segera ke IGD. Pengobatan stroke paling efektif bila diberikan secepatnya.'))}</p>`).join('')}
         ${S.findings.includes('SuicidalIdeation') ? '<p class="alert-box">Anda tidak sendiri. Bicarakan dengan seseorang sekarang: layanan kesehatan jiwa SEJIWA di 119 ekstensi 8.</p>' : ''}
         ${l <= 2 ? `<div><h2>Selama menuju IGD</h2><ul class="tips">
           <li>${S.who === 'self' ? 'Jangan menyetir sendiri; minta diantar keluarga atau ambulans.' : 'Temani terus dan jangan biarkan sendirian.'}</li>
@@ -232,14 +333,48 @@ const VIEWS = {
   },
 };
 
+const ESI_ACTION = ['', 'Bawa ke ruang resusitasi sekarang dan aktifkan tim resusitasi.', 'Tempatkan di area gawat; dokter menilai segera. Pantau tanda vital berkala.',
+  'Area observasi; evaluasi ulang tanda vital selama menunggu.', 'Area fast track atau poliklinik.', 'Area fast track atau poliklinik.'];
+function nurseResult() {
+  const r = S.result;
+  if (!r || !r.esi) return `<div class="screen"><h1 class="q-title">Hasil belum tersedia.</h1>${cta('Kembali ke formulir', true, '', 'back')}</div>`;
+  const l = r.esi;
+  const reasons = r.trace.filter(t => !['Z01', 'C00'].includes(t.rule));
+  return `<div class="screen result l${l}" id="screen">
+    <section class="verdict">
+      <span class="level"><b>${l}</b>${esc(r.esi_label)}</span>
+      <h1>${esc(ESI_ACTION[l])}</h1>
+      <p>Kandidat dari aturan: ${r.candidates.map(c => 'ESI ' + c).join(', ')}. Level akhir adalah kandidat paling akut.</p>
+    </section>
+    <section class="why-box">
+      <h2>Dasar keputusan</h2>
+      <ol class="reasons nurse-reasons">${reasons.map((t, i) => `<li style="--i:${i}"><span class="n">${esc(t.rule)}</span><p>${esc(num(t.reason))}<small>${esc(t.source)}</small></p></li>`).join('')}</ol>
+      ${r.alerts.filter(a => !a.startsWith('Resource')).map(a => `<p class="alert-box">${esc(a)}</p>`).join('')}
+      <div class="acts"><button class="btn ghost sm" type="button" data-act="back">Ubah data triase</button><button class="btn ghost sm" type="button" data-act="restart">Pasien baru</button></div>
+    </section></div>`;
+}
+
+function sbar() {
+  const r = S.result, f = facts();
+  const L = ids => ids.map(id => VL[id] || LABEL[id] || id).join(', ');
+  const vit = [f.hr && `N ${f.hr}`, f.rr && `RR ${f.rr}`, f.spo2 && `SpO2 ${f.spo2}%`, f.sbp && `TD ${f.sbp}`, f.temp && `S ${dec(f.temp)} °C`, S.avpu && `AVPU ${S.avpu}`].filter(Boolean).join(', ');
+  const top = r.trace.find(t => t.rule === 'Z01');
+  return [
+    ['S (situasi)', [L(f.findings), S.sites.length && `nyeri di ${L(S.sites).toLowerCase()}`, f.pain != null && `NRS ${f.pain}/10`, S.onset && `onset ${VL[S.onset].toLowerCase()}`, S.sudden && 'mendadak'].filter(Boolean).join('; ') || '-'],
+    ['B (latar)', [ageText(), S.sex && VL[S.sex], S.preg && VL[S.preg], S.cond.length && 'riwayat ' + L(S.cond), S.meds.length && 'obat ' + L(S.meds)].filter(Boolean).join('; ')],
+    ['A (penilaian)', `${r.esi_label}. ${top ? num(top.reason) : ''}${vit ? '. TTV: ' + vit : ''}`],
+    ['R (rekomendasi)', ESI_ACTION[r.esi]],
+  ];
+}
+
 function layReasons(r) {
   const out = [];
   const f = facts();
   const vitalWord = { 'Denyut jantung': ['Denyut nadi', 'kali per menit', 'lebih cepat dari'], 'Laju napas': ['Napas', 'kali per menit', 'lebih cepat dari'], 'SpO2': ['Kadar oksigen', '%', 'di bawah'] };
-  const ORDER = ['A01', 'A02', 'A03', 'B01', 'B02', 'B03', 'B04', 'B05', 'F01', 'D01', 'C02'];  // urutan keakutan algoritma ESI
+  const ORDER = ['A01', 'A02', 'A03', 'B01', 'B02', 'B03', 'B04', 'B05', 'B06', 'B07', 'B08', 'B09', 'B10', 'B11', 'B12', 'F01', 'D01', 'C02'];  // urutan keakutan algoritma ESI
   const trace = [...r.trace].sort((a, b) => (ORDER.indexOf(a.rule) + 99) % 99 - (ORDER.indexOf(b.rule) + 99) % 99);
   for (const t of trace) {
-    if (['C00', 'C01', 'E01', 'Z01', 'G01'].includes(t.rule)) continue;
+    if (['C00', 'C01', 'E01', 'Z01', 'G01', 'G02'].includes(t.rule)) continue;
     if (t.rule === 'D01') {
       const m = t.reason.match(/^(Denyut jantung|Laju napas|SpO2)[^=]*= ([\d.]+) [<>] ([\d.]+)/);
       if (m) { const [w, u, cmp] = vitalWord[m[1]]; out.push(`${w} ${num(m[2])} ${u}, ${cmp} batas aman untuk usia ${ageText()} (${cmp === 'di bawah' ? 'minimal' : 'paling tinggi'} ${num(m[3])}).`); }
@@ -248,7 +383,7 @@ function layReasons(r) {
     if (t.rule === 'C02') { out.push(f.temp > 39 ? `Demam ${dec(f.temp)} °C pada anak di bawah 3 tahun perlu segera diperiksa dokter.` : 'Anak di bawah 3 tahun yang demam dengan imunisasi belum lengkap perlu segera diperiksa dokter.'); continue; }
     if (t.rule === 'B04' || t.rule === 'B05') { out.push(`Bayi berusia ${ageText()} dengan suhu ${dec(f.temp)} °C. Demam pada bayi semuda ini perlu segera diperiksa dokter.`); continue; }
     if (t.rule === 'B03') { out.push(`Rasa nyerinya sangat berat (${f.pain} dari 10).`); continue; }
-    const items = t.used.map(u => LABEL[PREF2ID[u]] || '').filter(Boolean);
+    const items = ['A01', 'B01', 'B02'].includes(t.rule) ? t.used.map(u => LABEL[PREF2ID[u]] || '').filter(Boolean) : [];  // aturan kategori: sebutkan keluhannya
     out.push(items.length ? `${t.lay}: ${items.join(', ').toLowerCase()}.` : `${t.lay}.`);
   }
   if (r.esi >= 3) {
@@ -263,8 +398,20 @@ function layReasons(r) {
 function side() {
   const step = STEPS[S.step];
   if (step === 'welcome') return `
-    <div class="card"><h2>Yang akan ditanyakan</h2><ol class="steps"><li>Usia</li><li>Tanda bahaya</li><li>Keluhan</li><li>Rasa nyeri</li><li>Hasil ukur (bila ada)</li></ol></div>
+    <div class="card"><h2>${S.mode === 'nurse' ? 'Isi formulir perawat' : 'Yang akan ditanyakan'}</h2><ol class="steps">${(S.mode === 'nurse'
+      ? ['Pasien dan kehamilan', 'Decision Point A dan B', 'Onset, nyeri, lokasi', 'Riwayat dan obat', 'Tanda vital, AVPU', 'Perkiraan resource']
+      : ['Usia', 'Tanda bahaya', 'Keluhan', 'Sejak kapan dan riwayat', 'Rasa nyeri', 'Hasil ukur (bila ada)']).map(t => `<li>${t}</li>`).join('')}</ol></div>
     <div class="card sos-card"><p>Bila tidak sadar, tidak bernapas, atau perdarahan hebat: <a href="tel:119">telepon 119 sekarang</a>.</p></div>`;
+  if (nurse()) {
+    if (step === 'result' && S.result?.esi) return `
+    <div class="card handover"><h2>Serah terima (SBAR)</h2><dl>${sbar().map(([k, v]) => `<dt>${k}</dt><dd>${esc(v)}</dd>`).join('')}</dl></div>
+    <button class="tech-link" type="button" data-act="think">Detail teknis sistem pakar (${new Set(S.result.trace.map(t => t.rule)).size} aturan)</button>`;
+    const done = [['Usia', ageOk()], ['Keluhan', S.findings.length > 0], ['Onset', !!S.onset], ['Nyeri', S.pain !== null], ['Riwayat', S.cond.length + S.meds.length > 0],
+      ['Tanda vital', ['hr', 'rr', 'spo2', 'sbp', 'temp'].filter(k => S.m[k]).length + ' dari 5'], ['AVPU', S.avpu || false], ['Resource', S.res.length + ' jenis']];
+    return `<div class="card"><h2>Kelengkapan pengkajian</h2><ul class="sum">${done.map(([k, v]) =>
+      `<li><span><span>${k}</span><b class="${v ? '' : 'empty'}">${v === true ? 'terisi' : v || 'belum'}</b></span></li>`).join('')}</ul></div>
+    <div class="card sos-card"><p>Pasien memburuk saat menunggu? Lakukan triase ulang.</p></div>`;
+  }
   const f = facts();
   const vit = [f.temp && `suhu ${dec(f.temp)} °C`, f.hr && `nadi ${f.hr}`, f.rr && `napas ${f.rr}`, f.spo2 && `oksigen ${f.spo2}%`].filter(Boolean).join(', ');
   const painTxt = S.pain === null ? '' : (S.who === 'child' && (ageYears() ?? 9) < 4 ? KID_PAIN.find(k => k[0] === S.pain)?.[1] : `${S.pain} dari 10`);
@@ -273,8 +420,9 @@ function side() {
     ['Usia', ageText(), 1],
     ['Tanda bahaya', S.danger.length ? S.danger.map((d, i) => i ? LABEL[d].toLowerCase() : LABEL[d]).join(', ') : S.dangerNone ? 'Tidak ada' : '', 2],
     ['Keluhan', S.findings.map((d, i) => i ? LABEL[d].toLowerCase() : LABEL[d]).join(', '), 3],
-    ['Nyeri', painTxt, 4],
-    ['Hasil ukur', vit || (S.step >= 6 ? 'Tidak diukur' : ''), 5],
+    ['Riwayat', [S.onset && 'sejak ' + VL[S.onset].toLowerCase(), S.sudden && 'tiba-tiba', ...[...S.cond, ...S.meds, S.preg].filter(Boolean).map(id => VL[id].toLowerCase())].filter(Boolean).join(', '), 4],
+    ['Nyeri', painTxt + (S.sites.length ? ` (${S.sites.map(id => VL[id].toLowerCase()).join(', ')})` : ''), 5],
+    ['Hasil ukur', vit || (S.step >= I.result ? 'Tidak diukur' : ''), 6],
   ];
   if (step === 'result' && S.result?.esi) return `
     <div class="card handover"><h2>Ringkasan untuk petugas IGD</h2><dl>${rows.filter(r => r[1]).map(([k, v]) => `<dt>${k}</dt><dd>${esc(v)}</dd>`).join('')}</dl></div>
@@ -293,20 +441,20 @@ function draw() {
   else { el.className = 'screen'; el.innerHTML = view; el.style.animation = 'none'; void el.offsetWidth; el.style.animation = ''; }
   $('#side').innerHTML = side();
   document.body.classList.toggle('on-result', STEPS[S.step] === 'result');  // satu pintu masuk detail teknis di layar hasil
-  if (STEPS[S.step] === 'age') $('#age')?.focus();
+  if (STEPS[S.step] === 'age' || (STEPS[S.step] === 'nurse' && !S.age)) $('#age')?.focus();
 }
 
 async function go(to) {
   S.step = Math.max(0, Math.min(to, STEPS.length - 1));
   if (STEPS[S.step] === 'result') {
-    try { await assess(); } catch (e) { alert('Gagal menghubungi server: ' + e.message); S.step = 5; }
+    try { await assess(); } catch (e) { alert('Gagal menghubungi server: ' + e.message); S.step = nurse() ? I.nurse : I.measure; }
   } else if (S.step >= 2 && ageOk() && !$('#mind').hidden) assess().catch(() => {});
   draw();
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 function reset() {
-  Object.assign(S, { step: 0, who: null, age: '', unit: 'tahun', danger: [], dangerNone: false, findings: [], pain: null, m: {}, result: null });
+  Object.assign(S, BLANK());
   renderMind();
   go(0);
 }
@@ -317,35 +465,42 @@ document.addEventListener('click', e => {
   if (!b || b.tagName === 'FORM' || b.disabled) return;
   const v = b.dataset.v;
   switch (b.dataset.act) {
+    case 'mode': S.mode = v; S.who = null; S.unit = 'tahun'; S.age = ''; draw(); break;
+    case 'nurse-open': go(I.nurse); break;
+    case 'nurse-go': { const err = vitalError(); if (err) { $('#measure-err').textContent = err; break; } go(I.result); break; }
     case 'who': if (S.who !== v) { S.who = v; S.unit = 'tahun'; S.age = ''; } draw(); break;
-    case 'next': go(S.step === 2 && S.danger.length ? 6 : S.step + 1); break;
-    case 'back': go(S.step - 1); break;
+    case 'next': go(S.step === I.danger && S.danger.length ? I.result : S.step + 1); break;
+    case 'back': go(nurse() ? (S.step === I.result ? I.nurse : 0) : S.step - 1); break;
+    case 'sex': S.sex = S.sex === v ? null : v; if (S.sex !== 'Sex_F') S.preg = null; draw(); break;
+    case 'preg': S.preg = S.preg === v ? null : v; draw(); break;
+    case 'onset': S.onset = S.onset === v ? null : v; draw(); break;
+    case 'sudden': S.sudden = JSON.parse(v); draw(); break;
+    case 'cond': S.cond = toggle(S.cond, v); draw(); break;
+    case 'med': S.meds = toggle(S.meds, v); draw(); break;
+    case 'site': S.sites = toggle(S.sites, v); draw(); break;
+    case 'res': S.res = toggle(S.res, v); draw(); break;
+    case 'avpu': S.avpu = S.avpu === v ? null : v; draw(); break;
     case 'goto': go(+v); break;
     case 'unit': S.unit = v; draw(); break;
     case 'danger': S.danger = S.danger.includes(v) ? S.danger.filter(x => x !== v) : [...S.danger, v]; S.dangerNone = false; draw(); break;
     case 'dangerNone': S.danger = []; S.dangerNone = !S.dangerNone; draw(); break;
     case 'finding': S.findings = S.findings.includes(v) ? S.findings.filter(x => x !== v) : [...S.findings, v]; draw(); break;
     case 'pain': S.pain = +v; draw(); break;
-    case 'finish-skip': S.m = {}; go(6); break;
-    case 'finish': {
-      const lim = { temp: [30, 45, 'Suhu', '°C'], hr: [20, 300, 'Denyut nadi', 'kali/menit'], rr: [4, 100, 'Napas', 'kali/menit'], spo2: [50, 100, 'Kadar oksigen', '%'] };
-      const bad = Object.entries(lim).find(([k, [lo, hi]]) => S.m[k] && !(parseFloat(String(S.m[k]).replace(',', '.')) >= lo && parseFloat(String(S.m[k]).replace(',', '.')) <= hi));
-      if (bad) { const [, [lo, hi, t, u]] = bad; $('#measure-err').textContent = `${t} sepertinya tidak sesuai (seharusnya antara ${lo} dan ${hi} ${u}). Periksa lagi atau kosongkan.`; break; }
-      go(6); break;
-    }
+    case 'finish-skip': S.m = {}; go(I.result); break;
+    case 'finish': { const err = vitalError(); if (err) { $('#measure-err').textContent = err; break; } go(I.result); break; }
     case 'restart': reset(); break;
     case 'think': openMind(true); break;
   }
 });
 document.addEventListener('input', e => {
   if (e.target.id === 'age') {
-    S.age = e.target.value; $('#next').disabled = !ageOk(); $('#age-hint').textContent = ageHint(); $('#side').innerHTML = side();
+    S.age = e.target.value; $('#next').disabled = !ageOk(); if ($('#age-hint')) $('#age-hint').textContent = ageHint(); $('#side').innerHTML = side();
     const h = document.querySelector('.cta-hint'); if (h) h.hidden = ageOk();
   }
   if (e.target.dataset.m) S.m[e.target.dataset.m] = e.target.value;
 });
 document.addEventListener('keydown', e => {
-  if (e.key === 'Enter' && e.target.id === 'age' && ageOk()) go(S.step + 1);
+  if (e.key === 'Enter' && e.target.id === 'age' && ageOk() && !nurse()) go(S.step + 1);
   if (e.key === 'Escape' && !$('#mind').hidden) openMind(false);
 });
 document.addEventListener('submit', async e => {
@@ -412,7 +567,7 @@ function renderMind() {
       const lv = [...new Set(fr.filter(t => t.conclusion.startsWith('ESI')).map(t => t.conclusion.split(':')[0]))];
       st = k === 'D' && !fr.some(t => t.rule === 'E01') ? 'danger zone' : lv.length ? 'ya: ' + lv.join(', ') : 'ya';
     } else if (top <= 2 && (k === 'C' || k === 'D')) { cls = 'skip'; st = 'dilewati'; }
-    else if (S.step >= ({ A: 3, B: 5, C: 6, D: 6 })[k]) st = 'tidak';
+    else if (S.step >= ({ A: I.complaint, B: I.measure, C: I.result, D: I.result })[k]) st = 'tidak';
     return `<li class="${cls}"><span class="k">${k}</span><span><b>Decision Point ${k}</b><small>${q}</small></span><span class="st">${esc(st)}</span></li>`;
   }).join('') + `<li class="${r.esi ? 'yes' : ''}"><span class="k">Z</span><span><b>Resolusi konflik</b><small>Ambil tingkat paling gawat dari semua kandidat</small></span><span class="st">${r.esi ? 'ESI ' + r.esi : 'menunggu'}</span></li>`;
   const ev = r.evidence;
@@ -480,6 +635,11 @@ document.addEventListener('keydown', e => {
 });
 
 let PREF2ID = {};
+fetch('/api/vocab').then(r => r.json()).then(v => {
+  VOC = v;
+  for (const list of [...Object.values(v).filter(Array.isArray), ...Object.values(v.findings)]) for (const o of list) VL[o.id] = o.label;
+  draw();
+});
 fetch('/api/findings').then(r => r.json()).then(m => { PREF2ID = Object.fromEntries(Object.entries(m).map(([id, label]) => [label, id])); });
 fetch('/api/rules').then(r => r.json()).then(rs => {
   $('#rules').innerHTML = '<tr><th>ID</th><th>IF</th><th>THEN</th><th>Sumber</th></tr>' +

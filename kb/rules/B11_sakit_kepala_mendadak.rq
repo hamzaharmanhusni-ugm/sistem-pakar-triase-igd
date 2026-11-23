@@ -1,0 +1,13 @@
+# B11 (Gilboy 2012, Tabel 3-1): IF sakit kepala (keluhan atau lokasi nyeri di kepala) AND onset mendadak THEN kandidat ESI 2
+PREFIX ex: <http://example.org/triage/>
+PREFIX prov: <http://www.w3.org/ns/prov#>
+INSERT {
+  ?case ex:candidateESI ex:ESI_2 .
+  ?inf a ex:Inference ; ex:usedRule ex:Rule_B11 ; ex:aboutCase ?case ; ex:concluded ex:ESI_2 ; prov:used ?src ; ex:reason ?why .
+}
+WHERE {
+  ?case a ex:TriageCase ; ex:onsetSudden true .
+  { ?case ex:presentsWith ex:Headache . BIND(ex:Headache AS ?src) } UNION { ?case ex:painSite ex:Region_Head . BIND(ex:Region_Head AS ?src) }
+  BIND(IRI(CONCAT(STR(?case), "_inf_B11")) AS ?inf)
+  BIND("Sakit kepala yang muncul mendadak (curiga perdarahan subaraknoid)" AS ?why)
+}

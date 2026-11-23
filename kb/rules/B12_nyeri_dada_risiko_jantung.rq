@@ -1,0 +1,14 @@
+# B12 (Gilboy 2012, Bab 3): IF lokasi nyeri di dada AND penanda risiko kardiovaskular THEN kandidat ESI 2
+PREFIX ex: <http://example.org/triage/>
+PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
+PREFIX prov: <http://www.w3.org/ns/prov#>
+INSERT {
+  ?case ex:candidateESI ex:ESI_2 .
+  ?inf a ex:Inference ; ex:usedRule ex:Rule_B12 ; ex:aboutCase ?case ; ex:concluded ex:ESI_2 ; prov:used ex:Region_Chest , ?x ; ex:reason ?why .
+}
+WHERE {
+  ?case a ex:TriageCase ; ex:painSite ex:Region_Chest ; ex:ofPatient ?pt .
+  ?pt ex:hasCondition|ex:takesMedication ?x . ?x ex:riskFlag ex:Risk_Cardiac ; skos:prefLabel ?l .
+  BIND(IRI(CONCAT(STR(?case), "_inf_B12_", STRAFTER(STR(?x), "triage/"))) AS ?inf)
+  BIND(CONCAT("Nyeri dada pada pasien dengan faktor risiko jantung: ", STR(?l)) AS ?why)
+}

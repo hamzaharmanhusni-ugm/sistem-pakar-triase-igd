@@ -1,0 +1,15 @@
+# B06 (Gilboy 2012, Bab 3): IF cedera kepala AND riwayat/obat berpenanda risiko perdarahan THEN kandidat ESI 2
+PREFIX ex: <http://example.org/triage/>
+PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
+PREFIX prov: <http://www.w3.org/ns/prov#>
+INSERT {
+  ?case ex:candidateESI ex:ESI_2 .
+  ?inf a ex:Inference ; ex:usedRule ex:Rule_B06 ; ex:aboutCase ?case ; ex:concluded ex:ESI_2 ; prov:used ?f , ?x ; ex:reason ?why .
+}
+WHERE {
+  ?case a ex:TriageCase ; ex:presentsWith ?f ; ex:ofPatient ?pt .
+  FILTER(?f IN (ex:MinorHeadInjury, ex:HeadInjuryLOC))
+  ?pt ex:hasCondition|ex:takesMedication ?x . ?x ex:riskFlag ex:Risk_Bleeding ; skos:prefLabel ?l .
+  BIND(IRI(CONCAT(STR(?case), "_inf_B06_", STRAFTER(STR(?x), "triage/"))) AS ?inf)
+  BIND(CONCAT("Cedera kepala pada pasien dengan risiko perdarahan: ", STR(?l)) AS ?why)
+}
