@@ -34,6 +34,14 @@ JOBS = {
         'toc': True,
         'figs': {},
     },
+    'ringkasan': {
+        'sources': [DOCS_DIR / 'Ringkasan TBox ABox dan Aturan.md'],
+        'name': 'Ringkasan - TBox, ABox, dan Aturan Sistem Pakar Triase IGD',
+        'title': 'TBox, ABox, dan Aturan pada Sistem Pakar Triase IGD',
+        'subtitle': 'Ringkasan untuk presentasi. Versi lengkap: Bahan Ajar TBox, ABox, dan Aturan',
+        'toc': True,
+        'figs': {},
+    },
     'bahan-ajar': {
         'sources': [DOCS_DIR / 'Bahan Ajar TBox ABox dan Aturan.md'],
         'name': 'Bahan Ajar - TBox, ABox, dan Aturan Sistem Pakar Triase IGD',
@@ -171,6 +179,12 @@ def to_html(md_text, figs):
     md_text = re.sub(r'\[([^\]]+)\]\(<?[^)]*\.md>?\)', r'\1', md_text)      # tautan antar-dokumen jadi teks
     if '{{RULES}}' in md_text:
         md_text = md_text.replace('{{RULES}}', rules_table())
+    if '{{RULES_SHORT}}' in md_text:
+        sys.path.insert(0, str(ROOT))
+        from app import engine
+        dp = lambda r: (r['decision_point'] or '').replace('Decision Point ', '') or ('Z' if r['id'] == 'Z01' else 'Pendukung')
+        md_text = md_text.replace('{{RULES_SHORT}}', '\n'.join(
+            f"| {r['id']} | {dp(r)} | {r['if'].replace('|', '/')} | {r['then'].replace('|', '/')} |" for r in sorted(engine.rules_catalog(), key=lambda r: ('ABCD'.find(dp(r)) % 9 if dp(r) in 'ABCD' else 8 + (dp(r) == 'Z'), r['id']))))
     if '{{RULES_DETAIL}}' in md_text:
         md_text = md_text.replace('{{RULES_DETAIL}}', rules_detail())
     html = markdown.markdown(md_text, extensions=['tables', 'fenced_code'])

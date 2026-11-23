@@ -274,7 +274,7 @@ Setiap jawaban formulir menjadi satu triple ABox. Perhatikan bahwa `case_graph()
 
 ## 4.4 Bagian ABox yang terlihat seperti TBox
 
-| Isi `knowledge.ttl` | Mengapa terlihat seperti TBox | Mengapa sebenarnya ABox |
+| Isi di knowledge.ttl | Mengapa terlihat seperti TBox | Mengapa sebenarnya ABox |
 | --- | --- | --- |
 | `ex:Fever a ex:Symptom` | Seperti klasifikasi | Menyatakan keanggotaan satu benda. Definisi kelas `Symptom` ada di TBox |
 | `ex:Region_RLQ skos:broader ex:Region_Abdomen` | Seperti hierarki | Hierarki antarbenda (SKOS), bukan antarkelas (`subClassOf`) |
@@ -479,8 +479,11 @@ Kasus: perawat menginput pasien laki-laki 58 tahun dengan nyeri di dada, onset k
 **Langkah 5. Reasoner (TBox).** GraphDB menambah, antara lain, `DangerZoneVisit`, `vitalValue`, dan rantai `dependsOn` lengkap (bagian 5.2).
 
 **Langkah 6. Penjelasan.** `summarize()` membaca jejak `ex:Inference`, lalu menggabungkannya dengan kartu aturan (ABox meta) untuk menampilkan teks IF-THEN, sumber, dan alasan. Antarmuka menampilkan:
+
 - Hasil: ESI 2, "Tempatkan di area gawat; dokter menilai segera."
+
 - Dasar keputusan: B12, C01, D01, E01, masing-masing dengan sumbernya.
+
 - Serah terima SBAR untuk tim IGD.
 
 Panel "Detail teknis" menampilkan jejak yang sama dalam bentuk SPARQL dan triple, sehingga setiap kesimpulan dapat ditelusuri sampai ke fakta asalnya.
