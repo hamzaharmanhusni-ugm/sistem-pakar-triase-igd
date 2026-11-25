@@ -629,7 +629,7 @@ $('#backdrop').onclick = () => openMind(false);
 document.querySelectorAll('.mtabs button').forEach(t => t.onclick = () => {
   document.querySelectorAll('.mtabs button').forEach(x => x.setAttribute('aria-selected', x === t));
   document.querySelectorAll('.mpane').forEach(p => p.hidden = p.id !== t.dataset.pane);
-  if (t.dataset.pane === 'm-graph' && !CY) showGraph(S.result ? 'case' : 'tbox');
+  if (t.dataset.pane === 'm-graph' && (!CY || (GMODE === 'case' && GFOR !== JSON.stringify(facts())))) showGraph(S.result ? 'case' : 'tbox');
   if (t.dataset.pane === 'm-sparql' && !QLIB) loadLib();
 });
 
@@ -706,21 +706,66 @@ document.addEventListener('click', e => {
   if (open) { openMind(true); openQuery(QBUF[+open.dataset.qopen]); }
 });
 
-/* ---------- penjelajah knowledge graph (Cytoscape.js, dimuat saat tab Graph dibuka) ---------- */
-let CY = null;
-const GCOL = { case: '#0f6b5c', inference: '#c2410c', rule: '#7c3aed', abox: '#2563eb', tbox: '#475569', literal: '#a3a3a3' };
-const loadCy = () => window.cytoscape ? Promise.resolve() : new Promise((ok, no) => {
+/* ---------- penjelajah knowledge graph (Cytoscape.js + dagre, dimuat saat tab Graph dibuka) ---------- */
+let CY = null, GMODE = null, GFOR = null;
+const GKIND = { case: ['Kasus dan pasien', '#0f6b5c'], inference: ['Inferensi (jejak aturan)', '#c2410c'], rule: ['Aturan', '#7c3aed'],
+  abox: ['ABox: individu', '#2563eb'], tbox: ['TBox: kelas dan property', '#475569'] };
+const GLIBS = ['https://cdn.jsdelivr.net/npm/cytoscape@3.30.2/dist/cytoscape.min.js', 'https://cdn.jsdelivr.net/npm/dagre@0.8.5/dist/dagre.min.js',
+  'https://cdn.jsdelivr.net/npm/cytoscape-dagre@2.5.0/cytoscape-dagre.js'];
+const loadScript = src => new Promise((ok, no) => {
   const s = document.createElement('script');
-  s.src = 'https://cdn.jsdelivr.net/npm/cytoscape@3.30.2/dist/cytoscape.min.js';
-  s.onload = ok; s.onerror = () => no(new Error('Pustaka graph gagal dimuat (periksa koneksi).'));
+  s.src = src; s.onload = ok; s.onerror = () => no(new Error('Pustaka graph gagal dimuat (periksa koneksi).'));
   document.head.append(s);
 });
-const toEls = d => [...d.nodes.map(n => ({ data: { ...n, color: GCOL[n.kind] || '#475569' } })), ...d.edges.map(e => ({ data: { ...e, id: `${e.source}|${e.label}|${e.target}` } }))]
-  .filter((el, i, a) => a.findIndex(x => x.data.id === el.data.id) === i);
+const loadCy = async () => { if (!window.cytoscape) for (const src of GLIBS) await loadScript(src); };  // urutan penting: cytoscape-dagre mendaftar ke cytoscape
+const GLAYOUT = { case: { name: 'dagre', rankDir: 'LR', nodeSep: 12, rankSep: 80, edgeSep: 6, padding: 16 },
+  tbox: { name: 'dagre', rankDir: 'BT', nodeSep: 18, rankSep: 55, padding: 16 } };
+const toEls = d => [...d.nodes.map(n => ({ data: { ...n, color: GKIND[n.kind]?.[1] || '#475569' } })), ...d.edges.map(e => ({ data: e }))];
+// Graph kasus disusun per lajur agar terbaca sebagai alur: aturan -> inferensi -> kasus -> individu ABox -> kelas TBox
+const LANES = [['rule', 'Aturan IF-THEN', 'yang terpicu (kelas ex:Rule)'], ['inference', 'Inferensi', 'jejak penalaran (kelas ex:Inference)'], ['case', 'Kasus ini', 'fakta pasien (ABox kasus)'],
+  ['abox', 'ABox', 'individu di knowledge base'], ['tbox', 'TBox', 'kelas di ontologi']];
+const LANE_W = 230, ROW_H = 54;
+function laneLayout(animate = false) {
+  CY.remove('[kind="lane"]');
+  const vis = n => n.style('display') !== 'none';
+  const cols = LANES.map(([k]) => CY.nodes(`[kind="${k}"]`).filter(vis).toArray());
+  const y = {};
+  cols.forEach(c => c.forEach((n, i) => { y[n.id()] = i * ROW_H; }));
+  for (let pass = 0; pass < 4; pass++) cols.forEach(c => {  // urutkan tiap lajur menurut rata-rata posisi tetangga (mengurangi garis bersilang)
+    const key = n => { const nb = n.neighborhood('node').filter(m => m.data('kind') !== n.data('kind') && y[m.id()] != null); return nb.length ? nb.toArray().reduce((s, m) => s + y[m.id()], 0) / nb.length : y[n.id()]; };
+    c.sort((a, b) => key(a) - key(b)).forEach((n, i) => { y[n.id()] = i * ROW_H; });
+  });
+  const tallest = Math.max(1, ...cols.map(c => c.length));
+  const pos = {};
+  cols.forEach((c, ci) => c.forEach(n => { pos[n.id()] = { x: ci * LANE_W, y: y[n.id()] + (tallest - c.length) * ROW_H / 2 }; }));
+  CY.add(LANES.map(([k, t, sub], ci) => ({ data: { id: 'lane_' + k, kind: 'lane', label: `${t}\n${sub}` }, position: { x: ci * LANE_W, y: -70 }, selectable: false, grabbable: false })));
+  CY.layout({ name: 'preset', positions: n => pos[n.id()] || n.position(), fit: true, padding: 24, animate, animationDuration: 300 }).run();
+}
+const relayout = (animate = true) => GMODE === 'case' ? laneLayout(animate) : CY.layout({ ...GLAYOUT.tbox, animate, animationDuration: 350 }).run();
+const GSTYLE = [
+  { selector: 'node', style: { 'background-color': 'data(color)', label: 'data(label)', 'font-size': 10, 'font-family': 'system-ui, sans-serif', color: '#1f2937',
+    'text-wrap': 'wrap', 'text-max-width': 120, 'text-valign': 'bottom', 'text-margin-y': 4, width: 16, height: 16, 'border-width': 0 } },
+  { selector: 'node[kind="tbox"], node[kind="case"]', style: { shape: 'round-rectangle', width: 'label', height: 'label', padding: 7, 'text-valign': 'center', 'text-margin-y': 0,
+    color: '#fff', 'font-weight': 600, 'text-max-width': 150 } },
+  { selector: 'node[kind="case"]', style: { 'font-size': 12, padding: 10 } },
+  { selector: 'node[kind="rule"]', style: { shape: 'diamond', width: 20, height: 20 } },
+  { selector: 'node[kind="inference"]', style: { shape: 'hexagon', width: 18, height: 18 } },
+  { selector: 'node[?focus]', style: { 'border-width': 3, 'border-color': '#f59e0b' } },
+  { selector: 'node:selected', style: { 'border-width': 3, 'border-color': '#111827' } },
+  { selector: 'edge', style: { width: 1.3, 'line-color': '#cbd5e1', 'target-arrow-color': '#94a3b8', 'target-arrow-shape': 'triangle', 'arrow-scale': 0.8, 'curve-style': 'bezier' } },
+  { selector: 'edge[rel="type"]', style: { 'line-style': 'dashed', 'line-color': '#b6c2cf' } },
+  { selector: 'edge[rel="sub"]', style: { 'line-color': '#64748b', 'target-arrow-color': '#64748b', 'target-arrow-fill': 'hollow', 'arrow-scale': 1.2 } },
+  { selector: 'edge.hl', style: { label: 'data(label)', 'font-size': 9, color: '#334155', 'text-rotation': 'autorotate', 'text-background-color': '#fff', 'text-background-opacity': 0.9,
+    'text-background-padding': 2, 'line-color': '#475569', 'target-arrow-color': '#475569', width: 2 } },
+  { selector: '.faded', style: { opacity: 0.12 } },
+  { selector: 'node[kind="lane"]', style: { shape: 'round-rectangle', width: LANE_W - 24, height: 40, 'background-color': '#e7eeeb', color: '#334155', 'font-size': 11,
+    'font-weight': 700, 'text-valign': 'center', 'text-margin-y': 0, 'text-wrap': 'wrap', 'text-max-width': LANE_W - 30, events: 'no', opacity: 1 } },
+];
 async function showGraph(kind) {
   const info = $('#ginfo');
-  if (kind === 'case' && !S.result) { info.textContent = 'Graph kasus tersedia setelah ada hasil triase. Menampilkan kerangka TBox.'; kind = 'tbox'; }
-  info.textContent = 'Memuat graph...';
+  if (kind === 'case' && !S.result) kind = 'tbox';
+  info.innerHTML = '<p class="fine">Memuat graph...</p>';
+  document.querySelectorAll('#g-case, #g-tbox').forEach(b => b.setAttribute('aria-pressed', b.id === 'g-' + kind));
   try {
     await loadCy();
     const res = kind === 'case'
@@ -729,38 +774,70 @@ async function showGraph(kind) {
     if (!res.ok) throw new Error((await res.json().catch(() => ({}))).detail || res.statusText);
     const d = await res.json();
     CY?.destroy();
-    CY = cytoscape({
-      container: $('#gview'), elements: toEls(d), wheelSensitivity: 0.3,
-      style: [
-        { selector: 'node', style: { 'background-color': 'data(color)', label: 'data(label)', 'font-size': 9, 'text-wrap': 'wrap', 'text-max-width': 120, 'text-valign': 'bottom', 'text-margin-y': 3, width: 16, height: 16, color: '#1f2937' } },
-        { selector: 'node[?focus]', style: { width: 26, height: 26, 'border-width': 3, 'border-color': '#f59e0b' } },
-        { selector: 'node:selected', style: { 'border-width': 3, 'border-color': '#111827' } },
-        { selector: 'edge', style: { width: 1.2, 'line-color': '#cbd5e1', 'target-arrow-color': '#94a3b8', 'target-arrow-shape': 'triangle', 'curve-style': 'bezier', label: 'data(label)', 'font-size': 7, color: '#64748b', 'text-rotation': 'autorotate', 'text-background-color': '#fff', 'text-background-opacity': 0.8 } },
-      ],
-      layout: { name: 'cose', animate: false, nodeRepulsion: 9000, idealEdgeLength: 90 },
-    });
-    CY.on('tap', 'node', e => expandNode(e.target));
-    info.textContent = `${kind === 'case' ? 'Graph kasus' : 'Kerangka TBox'}: ${d.nodes.length} simpul, ${d.edges.length} relasi. Klik simpul untuk membuka tetangganya.`;
-  } catch (e) { info.textContent = 'Graph gagal dimuat: ' + e.message; }
+    GMODE = kind; GFOR = JSON.stringify(facts());
+    CY = cytoscape({ container: $('#gview'), elements: toEls(d), style: GSTYLE, wheelSensitivity: 0.25, minZoom: 0.15, maxZoom: 3, layout: kind === 'case' ? { name: 'preset' } : GLAYOUT[kind] });
+    CY.on('mouseover', 'node', e => focusNode(e.target));
+    CY.on('mouseout', 'node', () => { if (!CY.$(':selected').length) unfocus(); });
+    CY.on('tap', 'node', e => { focusNode(e.target); nodeInfo(e.target); });
+    CY.on('tap', e => { if (e.target === CY) { unfocus(); graphHint(); } });
+    applyFilter();
+    if (kind === 'case') laneLayout();
+    graphHint();
+  } catch (e) { info.innerHTML = `<p class="note warn">Graph gagal dimuat: ${esc(e.message)}</p>`; }
+}
+function graphHint() {
+  $('#ginfo').innerHTML = `<p class="fine">${GMODE === 'case'
+    ? 'Baca dari kiri ke kanan: aturan yang terpicu membuat inferensi tentang kasus ini; kasus merujuk individu di knowledge base (ABox); setiap individu adalah anggota kelas di ontologi (TBox, garis putus-putus = rdf:type).'
+    : 'Kerangka TBox: kelas dan property. Panah berujung kosong adalah subClassOf; garis lain adalah object property dari domain ke range.'}
+    ${CY.nodes('[kind!="lane"]').length} simpul, ${CY.edges().length} relasi. Arahkan kursor untuk menyorot hubungan, klik simpul untuk melihat detail.</p>`;
+}
+const unfocus = () => CY.elements().removeClass('faded hl');
+function focusNode(n) {
+  unfocus();
+  CY.elements().not(n.closedNeighborhood()).not('[kind="lane"]').addClass('faded');
+  n.connectedEdges().addClass('hl');
+}
+const sparqlId = id => id.startsWith(':') ? 'ex' + id : id;
+function nodeInfo(n) {
+  const d = n.data(), props = d.props || [];
+  $('#ginfo').innerHTML = `<div class="gcard"><p><b>${esc(d.label)}</b> <span class="gchip" style="background:${d.color}">${esc(GKIND[d.kind]?.[0] || d.kind)}</span></p>
+    <p class="fine"><code>${esc(sparqlId(d.id))}</code>${d.count != null ? ` · ${d.count} individu` : ''} · ${n.degree()} relasi tampil</p>
+    ${props.length ? `<table class="dense gprops">${props.map(([p, v]) => `<tr><th>${esc(p)}</th><td>${esc(v)}</td></tr>`).join('')}</table>` : ''}
+    <div class="gbar"><button class="btn ghost sm" type="button" data-gact="expand">Tampilkan tetangga</button>
+      <button class="btn ghost sm" type="button" data-gact="query">Query di SPARQL</button>
+      <button class="btn ghost sm" type="button" data-gact="hide">Sembunyikan</button></div></div>`;
+  $('#ginfo').onclick = e => {
+    const a = e.target.closest('[data-gact]')?.dataset.gact;
+    if (a === 'expand') expandNode(n);
+    if (a === 'hide') { n.remove(); unfocus(); graphHint(); }
+    if (a === 'query') openQuery(`SELECT ?arah ?predikat ?nilai WHERE {\n  { ${sparqlId(d.id)} ?predikat ?nilai BIND("keluar" AS ?arah) }\n  UNION\n  { ?nilai ?predikat ${sparqlId(d.id)} BIND("masuk" AS ?arah) }\n} ORDER BY ?arah ?predikat LIMIT 100`);
+  };
 }
 async function expandNode(n) {
-  const iri = n.data('iri'), info = $('#ginfo');
-  if (!iri) { info.textContent = `Nilai literal: ${n.data('label')}`; return; }
-  const short = iri.split(/[#/]/).pop();
-  if (!/^[\w.-]+$/.test(short) || !iri.startsWith('http')) { info.textContent = iri; return; }
   try {
-    const res = await fetch('/api/graph/node?iri=' + encodeURIComponent(iri));
+    const res = await fetch('/api/graph/node?iri=' + encodeURIComponent(n.data('iri')));
     if (!res.ok) throw new Error(res.statusText);
     const d = await res.json();
     const add = toEls(d).filter(el => !CY.getElementById(el.data.id).length);
-    add.forEach(el => { if (!el.data.source) delete el.data.focus; });
+    add.forEach(el => { delete el.data.focus; });
     CY.add(add);
-    CY.layout({ name: 'cose', animate: true, animationDuration: 400, nodeRepulsion: 9000, idealEdgeLength: 90, fit: true, padding: 20 }).run();
-    info.textContent = `${d.label.replace('\n', ' · ')}: ${d.total} triple di knowledge graph` + (d.total > d.edges.length ? ` (ditampilkan ${d.edges.length})` : '') + (add.length ? `, ${add.filter(x => !x.data.source).length} simpul baru.` : ', semua tetangga sudah tampil.');
-  } catch (e) { info.textContent = 'Tetangga gagal dimuat: ' + e.message; }
+    applyFilter();
+    relayout();
+    focusNode(n);
+    const fresh = add.filter(x => !x.data.source).length;
+    $('#ginfo').insertAdjacentHTML('beforeend', `<p class="fine">${d.total} triple menyentuh simpul ini${d.total > d.edges.length ? ` (ditampilkan ${d.edges.length})` : ''}; ${fresh ? fresh + ' simpul baru ditambahkan.' : 'semua tetangga sudah tampil.'}</p>`);
+  } catch (e) { $('#ginfo').insertAdjacentHTML('beforeend', `<p class="note warn">Tetangga gagal dimuat: ${esc(e.message)}</p>`); }
 }
+function applyFilter() {
+  if (!CY) return;
+  document.querySelectorAll('[data-gkind]').forEach(c => CY.nodes(`[kind="${c.dataset.gkind}"]`).style('display', c.checked ? 'element' : 'none'));
+}
+$('#gfilter').innerHTML = Object.entries(GKIND).map(([k, [t, c]]) => `<label><input type="checkbox" data-gkind="${k}" checked><i style="background:${c}"></i>${t}</label>`).join('');
+$('#gfilter').onchange = () => { applyFilter(); if (CY) relayout(); };
 $('#g-case').onclick = () => showGraph('case');
 $('#g-tbox').onclick = () => showGraph('tbox');
+$('#g-fit').onclick = () => CY?.fit(undefined, 16);
+$('#g-relayout').onclick = () => CY && relayout();
 
 const tidy = x => String(x).replace(/Mandiri_[0-9a-f]{12}/g, 'pasien');
 const tripleList = (ts, owl) => `<ul class="triples">${ts.map(([s, p, o]) => `<li class="${owl ? 'owl' : ''}"><span class="s">${esc(tidy(s))}</span><span class="p">${esc(p)}</span><span class="o">${esc(tidy(o))}</span></li>`).join('')}</ul>`;

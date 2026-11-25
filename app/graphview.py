@@ -25,29 +25,57 @@ def _kind(g, n):
     return 'abox'
 
 
-def _label(g, n):
-    if isinstance(n, Literal):
-        return str(n)[:40]
-    lab = g.value(n, SKOS.prefLabel) or g.value(n, RDFS.label)
+def _label(g, n, case_prefix=None):
+    """Label tampilan singkat: nama manusiawi (prefLabel/label) bila ada, selain itu ID pendek."""
     short = engine.short_node(n)
-    return f'{short}\n{str(lab)[:38]}' if lab and str(lab) != short.lstrip(':') else short
+    s = str(n)
+    if case_prefix and s.startswith(case_prefix):
+        if '_inf_' in s:
+            return 'Inferensi ' + s.split('_inf_')[1][:3]
+        return 'Pasien' if s.endswith('_pasien') else 'Kasus ini'
+    lab = g.value(n, SKOS.prefLabel) or g.value(n, RDFS.label)
+    text = str(lab) if lab else short.lstrip(':')
+    return text if len(text) <= 34 else text[:32].rstrip() + '...'
 
 
 def _pack(g, triples, focus=(), case_prefix=None):
-    nodes, edges = {}, []
-    for i, (s, p, o) in enumerate(triples):
+    """Simpul dan sisi untuk Cytoscape. Nilai literal tidak dijadikan simpul, tetapi dilipat ke 'props' subjeknya
+    agar graph tidak penuh angka dan teks panjang; nilainya tampil di panel info saat simpul diklik."""
+    nodes, edges, seen = {}, [], set()
+
+    def node(n):
+        nid = engine.short_node(n)
+        if nid not in nodes:
+            kind = 'case' if case_prefix and str(n).startswith(case_prefix) and '_inf_' not in str(n) else _kind(g, n)
+            label = nid.lstrip(':') if kind == 'tbox' else 'Aturan ' + nid[6:] if kind == 'rule' else _label(g, n, case_prefix)
+            nodes[nid] = {'id': nid, 'label': label, 'kind': kind, 'iri': str(n), 'props': []}
+        return nid
+
+    for s, p, o in triples:
         if str(p) in SKIP_P or str(o) in NOISE or str(s) in NOISE:
             continue
-        sid = engine.short_node(s)
-        oid = f'lit{i}' if isinstance(o, Literal) else engine.short_node(o)
-        for nid, n in ((sid, s), (oid, o)):
-            if nid not in nodes:
-                kind = 'case' if case_prefix and str(n).startswith(case_prefix) and '_inf_' not in str(n) else _kind(g, n)
-                nodes[nid] = {'id': nid, 'label': _label(g, n), 'kind': kind, 'iri': None if isinstance(n, Literal) else str(n)}
-        edges.append({'id': f'e{i}', 'source': sid, 'target': oid, 'label': 'a' if p == RDF.type else engine.short_node(p)})
+        sid, pl = node(s), 'a' if p == RDF.type else engine.short_node(p)
+        if isinstance(o, Literal):
+            if [pl, str(o)] not in nodes[sid]['props']:
+                nodes[sid]['props'].append([pl, str(o)])
+            continue
+        oid = node(o)
+        if (sid, pl, oid) in seen:
+            continue
+        seen.add((sid, pl, oid))
+        rel = 'type' if p == RDF.type else 'sub' if p in (RDFS.subClassOf, OWL.equivalentClass) else 'rel'
+        edges.append({'id': f'{sid}|{pl}|{oid}', 'source': sid, 'target': oid, 'label': pl, 'rel': rel})
     for f in focus:
         if f in nodes:
             nodes[f]['focus'] = True
+    for n in nodes.values():  # lengkapi props simpul KB dengan label dan komentar untuk panel info
+        if n['kind'] in ('tbox', 'abox', 'rule'):
+            u = URIRef(n['iri'])
+            for p in (SKOS.prefLabel, RDFS.label, RDFS.comment, SKOS.notation):
+                v = g.value(u, p)
+                if v is not None and [engine.short_node(p), str(v)] not in n['props']:
+                    n['props'].append([engine.short_node(p), str(v)])
+            n['count'] = sum(1 for _ in g.subjects(RDF.type, u)) if n['kind'] == 'tbox' else None
     return {'nodes': list(nodes.values()), 'edges': edges}
 
 
@@ -64,6 +92,9 @@ def case_graph(result, case_iri):
             for o in g.objects(n, p):
                 if str(o).startswith(EX):
                     tr.append((n, p, o))
+    # ponytail: setiap inferensi dan aturan bertipe ex:Inference / ex:Rule; garis rdf:type-nya hanya menambah keruwetan,
+    # jadi kelas itu disebut di judul lajur antarmuka, bukan digambar
+    tr = [t for t in tr if not (t[1] == RDF.type and ('_inf_' in str(t[0]) or str(t[0]).startswith(EX + 'Rule_')))]
     return _pack(g, tr, focus=(engine.short_node(URIRef(case_iri)),), case_prefix=case_iri)
 
 

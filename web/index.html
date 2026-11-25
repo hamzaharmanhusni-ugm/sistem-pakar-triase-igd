@@ -84,12 +84,17 @@
   </div>
   <div class="mpane" id="m-graph" hidden>
     <div class="gbar">
-      <button class="btn sm" type="button" id="g-case">Graph kasus ini</button>
-      <button class="btn sm" type="button" id="g-tbox">Kerangka TBox</button>
-      <span class="glegend"><i class="k-case"></i>kasus <i class="k-inference"></i>inferensi <i class="k-rule"></i>aturan <i class="k-abox"></i>ABox <i class="k-tbox"></i>TBox <i class="k-literal"></i>nilai</span>
+      <button class="btn ghost sm" type="button" id="g-case" aria-pressed="false">Kasus ini (ABox + TBox)</button>
+      <button class="btn ghost sm" type="button" id="g-tbox" aria-pressed="false">Kerangka TBox</button>
+      <a class="btn ghost sm" target="_blank" rel="noopener" title="WebVOWL menggambar TBox dengan notasi VOWL; individu ABox tidak ditampilkan"
+        href="https://service.tib.eu/webvowl/#iri=https://huggingface.co/spaces/Hamzaharman/sistem-pakar-triase-igd/resolve/main/kb/triage-ontology.ttl">TBox di WebVOWL ↗</a>
     </div>
-    <div id="gview" aria-label="Penjelajah knowledge graph"></div>
-    <p class="fine" id="ginfo">Pilih graph di atas. Klik simpul untuk membuka tetangganya di knowledge graph; seret untuk menggeser, gulir untuk memperbesar.</p>
+    <div class="gfilter" id="gfilter" aria-label="Tampilkan jenis simpul"></div>
+    <div class="gwrap">
+      <div id="gview" aria-label="Penjelajah knowledge graph"></div>
+      <div class="gtools"><button type="button" id="g-fit" title="Paskan ke layar">Paskan</button><button type="button" id="g-relayout" title="Susun ulang tata letak">Susun ulang</button></div>
+    </div>
+    <div id="ginfo" class="ginfo"><p class="fine">Pilih graph di atas.</p></div>
   </div>
   <div class="mpane" id="m-sparql" hidden>
     <h3>Tanya knowledge graph (Claude)</h3>
@@ -111,6 +116,6 @@
     <div id="q-out" class="qout"></div>
   </div>
 </aside>
-<script src="/static/app.js?v=11"></script>
+<script src="/static/app.js?v=12"></script>
 </body>
 </html>

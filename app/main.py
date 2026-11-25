@@ -147,9 +147,8 @@ def assess(body: AssessIn):
 @app.post('/api/graph/case')
 def graph_case(body: AssessIn):
     """Graph satu kasus untuk tab Graph: fakta, jejak penalaran, dan konteks knowledge base yang disentuh."""
-    r, _, _ = _run(body)
-    case = next((s for s, _, _ in r['working_memory'] if s.startswith(':') and '_pasien' not in s), ':Kasus')
-    return graphview.case_graph(r, str(engine.EX) + case.lstrip(':'))
+    r, _, _ = _run(body, sparql.CASE)
+    return graphview.case_graph(r, str(engine.EX) + sparql.CASE)
 
 
 @app.get('/api/graph/tbox')

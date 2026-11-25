@@ -353,11 +353,21 @@ table.dense tr.fired td { background: #123a30; }
 
 /* tab Graph: penjelajah knowledge graph */
 .gbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 10px; }
-.glegend { font-size: .78rem; color: #9db3aa; display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: center; }
-.glegend i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 4px; vertical-align: -1px; }
-.k-case { background: #0f6b5c; } .k-inference { background: #c2410c; } .k-rule { background: #7c3aed; }
-.k-abox { background: #2563eb; } .k-tbox { background: #475569; } .k-literal { background: #a3a3a3; }
-#gview { height: min(62vh, 560px); background: #f8faf9; border-radius: 14px; }
+.gbar .btn[aria-pressed="true"] { background: #5fd3b6; color: #0b1411; border-color: #5fd3b6; }
+.gfilter { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-bottom: 10px; font-size: .82rem; color: #cfe0d8; }
+.gfilter label { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
+.gfilter i { width: 11px; height: 11px; border-radius: 3px; display: inline-block; }
+.gwrap { position: relative; }
+#gview { height: min(68vh, 640px); background: #f8faf9; border-radius: 14px; }
+.gtools { position: absolute; right: 10px; top: 10px; display: flex; gap: 6px; }
+.gtools button { font: 600 .78rem var(--font); background: #fff; color: #1f2937; border: 1px solid #cbd5e1; border-radius: 8px; padding: 5px 9px; cursor: pointer; }
+.ginfo { margin-top: 10px; }
+.gcard { background: #16231e; border: 1px solid #22322b; border-radius: 14px; padding: 12px 14px; color: #e6efe9; }
+.gcard p { margin: 0 0 6px; }
+.gchip { font-size: .72rem; color: #fff; border-radius: 999px; padding: 2px 8px; margin-left: 6px; vertical-align: 1px; }
+.gprops { margin: 6px 0 10px; }
+.gprops th { text-align: left; color: #9db3aa; font-weight: 600; padding-right: 10px; white-space: nowrap; vertical-align: top; }
+.gprops td { overflow-wrap: anywhere; }
 
 /* tab Query SPARQL */
 .qlib { display: grid; gap: 10px; }
