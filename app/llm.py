@@ -13,7 +13,7 @@ from pydantic import BaseModel
 from . import engine
 
 log = logging.getLogger('llm')
-MODEL = os.getenv('CLAUDE_MODEL', 'claude-opus-5-5')
+MODEL = os.getenv('CLAUDE_MODEL', 'claude-haiku-5-5')
 _state = {'client': None, 'disabled': os.getenv('LLM_ENABLED', '1') == '0', 'reason': 'dimatikan (LLM_ENABLED=0)'}
 
 

@@ -74,12 +74,14 @@ Buka http://localhost:8000. Tambahkan `?presentasi` untuk langsung membuka panel
 
 ### 4. Aktifkan Claude API (opsional)
 
-```powershell
-$env:ANTHROPIC_API_KEY = "sk-ant-..."
-uvicorn app.main:app --port 8000
+Salin `.env.example` menjadi `.env` di folder proyek, lalu isi kuncinya:
+
+```text
+ANTHROPIC_API_KEY=sk-ant-...
+CLAUDE_MODEL=claude-haiku-5-5
 ```
 
-Tanpa kunci, aplikasi berjalan penuh dalam mode lokal. Model dapat diganti dengan `CLAUDE_MODEL` (bawaan `claude-opus-5-5`).
+Aplikasi membaca `.env` saat dijalankan (`app/__init__.py`); berkas ini tercantum di `.gitignore` sehingga tidak ikut ter-commit. Mulai ulang server setelah mengubahnya. Tanpa kunci, aplikasi berjalan penuh dalam mode lokal. Model bawaan `claude-haiku-5-5`.
 
 ### Variabel lingkungan
 
