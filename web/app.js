@@ -709,7 +709,7 @@ document.addEventListener('click', e => {
 /* ---------- penjelajah knowledge graph (Cytoscape.js + dagre, dimuat saat tab Graph dibuka) ---------- */
 let CY = null, GMODE = null, GFOR = null;
 const GKIND = { case: ['Kasus dan pasien', '#0f6b5c'], inference: ['Inferensi (jejak aturan)', '#c2410c'], rule: ['Aturan', '#7c3aed'],
-  abox: ['ABox: individu', '#2563eb'], tbox: ['TBox: kelas dan property', '#475569'] };
+  esi: ['Skala ESI', '#b91c1c'], abox: ['ABox: individu', '#2563eb'], tbox: ['TBox: kelas dan property', '#475569'] };
 const GLIBS = ['https://cdn.jsdelivr.net/npm/cytoscape@3.30.2/dist/cytoscape.min.js', 'https://cdn.jsdelivr.net/npm/dagre@0.8.5/dist/dagre.min.js',
   'https://cdn.jsdelivr.net/npm/cytoscape-dagre@2.5.0/cytoscape-dagre.js'];
 const loadScript = src => new Promise((ok, no) => {
@@ -722,7 +722,8 @@ const GLAYOUT = { case: { name: 'dagre', rankDir: 'LR', nodeSep: 12, rankSep: 80
   tbox: { name: 'dagre', rankDir: 'BT', nodeSep: 18, rankSep: 55, padding: 16 } };
 const toEls = d => [...d.nodes.map(n => ({ data: { ...n, color: GKIND[n.kind]?.[1] || '#475569' } })), ...d.edges.map(e => ({ data: e }))];
 // Graph kasus disusun per lajur agar terbaca sebagai alur: aturan -> inferensi -> kasus -> individu ABox -> kelas TBox
-const LANES = [['rule', 'Aturan IF-THEN', 'yang terpicu (kelas ex:Rule)'], ['inference', 'Inferensi', 'jejak penalaran (kelas ex:Inference)'], ['case', 'Kasus ini', 'fakta pasien (ABox kasus)'],
+const LANES = [['rule', 'Aturan IF-THEN', 'yang terpicu (kelas ex:Rule)'], ['inference', 'Inferensi', 'jejak penalaran (kelas ex:Inference)'], ['esi', 'Skala ESI', '1 paling gawat, 5 paling ringan'],
+  ['case', 'Kasus ini', 'fakta pasien (ABox kasus)'],
   ['abox', 'ABox', 'individu di knowledge base'], ['tbox', 'TBox', 'kelas di ontologi']];
 const LANE_W = 230, ROW_H = 54;
 function laneLayout(animate = false) {
@@ -730,8 +731,9 @@ function laneLayout(animate = false) {
   const vis = n => n.style('display') !== 'none';
   const cols = LANES.map(([k]) => CY.nodes(`[kind="${k}"]`).filter(vis).toArray());
   const y = {};
-  cols.forEach(c => c.forEach((n, i) => { y[n.id()] = i * ROW_H; }));
-  for (let pass = 0; pass < 4; pass++) cols.forEach(c => {  // urutkan tiap lajur menurut rata-rata posisi tetangga (mengurangi garis bersilang)
+  cols.forEach(c => c.sort((a, b) => (a.data('order') ?? 0) - (b.data('order') ?? 0)).forEach((n, i) => { y[n.id()] = i * ROW_H; }));
+  for (let pass = 0; pass < 4; pass++) cols.forEach(c => {
+    if (c[0]?.data('kind') === 'esi') return;  // skala ESI tetap berurutan 1 sampai 5  // urutkan tiap lajur menurut rata-rata posisi tetangga (mengurangi garis bersilang)
     const key = n => { const nb = n.neighborhood('node').filter(m => m.data('kind') !== n.data('kind') && y[m.id()] != null); return nb.length ? nb.toArray().reduce((s, m) => s + y[m.id()], 0) / nb.length : y[n.id()]; };
     c.sort((a, b) => key(a) - key(b)).forEach((n, i) => { y[n.id()] = i * ROW_H; });
   });
@@ -741,7 +743,25 @@ function laneLayout(animate = false) {
   CY.add(LANES.map(([k, t, sub], ci) => ({ data: { id: 'lane_' + k, kind: 'lane', label: `${t}\n${sub}` }, position: { x: ci * LANE_W, y: -70 }, selectable: false, grabbable: false })));
   CY.layout({ name: 'preset', positions: n => pos[n.id()] || n.position(), fit: true, padding: 24, animate, animationDuration: 300 }).run();
 }
-const relayout = (animate = true) => GMODE === 'case' ? laneLayout(animate) : CY.layout({ ...GLAYOUT.tbox, animate, animationDuration: 350 }).run();
+// Knowledge base lengkap: kotak kelas (compound node) berisi individunya, disusun seperti rak
+function kbLayout() {
+  const COLW = 140, ROWH = 50, GAP = 60, pos = {};
+  const shape = n => { const c = Math.max(1, Math.min(5, Math.ceil(Math.sqrt(n * 1.5)))); return [c, c * COLW, Math.ceil(n / c) * ROWH]; };
+  const vis = b => b.children().filter(k => k.style('display') !== 'none').toArray();
+  const area = CY.nodes('[?box]').toArray().reduce((s, b) => { const [, w, h] = shape(vis(b).length); return s + (w + GAP) * (h + GAP + 30); }, 0);
+  const MAXW = Math.max(900, Math.sqrt(area * CY.width() / Math.max(1, CY.height())) * 1.1);  // rak mengikuti rasio layar
+  let x = 0, y = 0, rowH = 0;
+  CY.nodes('[?box]').forEach(b => {
+    const kids = vis(b);
+    const [cols, w, h] = shape(kids.length);
+    if (x > 0 && x + w > MAXW) { x = 0; y += rowH + GAP + 30; rowH = 0; }
+    kids.forEach((k, i) => { pos[k.id()] = { x: x + (i % cols) * COLW + COLW / 2, y: y + Math.floor(i / cols) * ROWH }; });
+    x += w + GAP; rowH = Math.max(rowH, h);
+  });
+  CY.layout({ name: 'preset', positions: n => pos[n.id()] || n.position(), fit: true, padding: 20 }).run();
+}
+const relayout = (animate = true) => GMODE === 'case' ? laneLayout(animate) : GMODE === 'kb' ? kbLayout()
+  : CY.layout({ ...GLAYOUT.tbox, animate, animationDuration: 350 }).run();
 const GSTYLE = [
   { selector: 'node', style: { 'background-color': 'data(color)', label: 'data(label)', 'font-size': 10, 'font-family': 'system-ui, sans-serif', color: '#1f2937',
     'text-wrap': 'wrap', 'text-max-width': 120, 'text-valign': 'bottom', 'text-margin-y': 4, width: 16, height: 16, 'border-width': 0 } },
@@ -757,6 +777,14 @@ const GSTYLE = [
   { selector: 'edge[rel="sub"]', style: { 'line-color': '#64748b', 'target-arrow-color': '#64748b', 'target-arrow-fill': 'hollow', 'arrow-scale': 1.2 } },
   { selector: 'edge.hl', style: { label: 'data(label)', 'font-size': 9, color: '#334155', 'text-rotation': 'autorotate', 'text-background-color': '#fff', 'text-background-opacity': 0.9,
     'text-background-padding': 2, 'line-color': '#475569', 'target-arrow-color': '#475569', width: 2 } },
+  { selector: 'node[kind="esi"]', style: { shape: 'round-rectangle', width: 'label', height: 'label', padding: 6, 'text-valign': 'center', 'text-margin-y': 0, color: '#fff', 'font-weight': 600 } },
+  { selector: 'node[esi="final"]', style: { 'border-width': 4, 'border-color': '#111827', 'font-size': 12 } },
+  { selector: 'node[esi="candidate"]', style: { 'background-color': '#fff', color: '#b91c1c', 'border-width': 2, 'border-style': 'dashed', 'border-color': '#b91c1c' } },
+  { selector: 'node[esi="none"]', style: { 'background-color': '#e5e7eb', color: '#6b7280' } },
+  { selector: 'node[?box]', style: { shape: 'round-rectangle', 'background-color': '#eef2f1', 'background-opacity': 1, 'border-width': 1, 'border-color': '#b6c2cf',
+    label: 'data(label)', 'text-valign': 'top', 'text-halign': 'center', 'text-margin-y': -4, color: '#334155', 'font-size': 12, 'font-weight': 700, padding: 16 } },
+  { selector: 'edge[?kb]', style: { display: 'none' } },
+  { selector: 'edge[?kb].hl', style: { display: 'element' } },
   { selector: '.faded', style: { opacity: 0.12 } },
   { selector: 'node[kind="lane"]', style: { shape: 'round-rectangle', width: LANE_W - 24, height: 40, 'background-color': '#e7eeeb', color: '#334155', 'font-size': 11,
     'font-weight': 700, 'text-valign': 'center', 'text-margin-y': 0, 'text-wrap': 'wrap', 'text-max-width': LANE_W - 30, events: 'no', opacity: 1 } },
@@ -765,36 +793,38 @@ async function showGraph(kind) {
   const info = $('#ginfo');
   if (kind === 'case' && !S.result) kind = 'tbox';
   info.innerHTML = '<p class="fine">Memuat graph...</p>';
-  document.querySelectorAll('#g-case, #g-tbox').forEach(b => b.setAttribute('aria-pressed', b.id === 'g-' + kind));
+  document.querySelectorAll('#g-case, #g-kb, #g-tbox').forEach(b => b.setAttribute('aria-pressed', b.id === 'g-' + kind));
   try {
     await loadCy();
     const res = kind === 'case'
       ? await fetch('/api/graph/case', { method: 'POST', headers: apiHeaders(), body: JSON.stringify(facts()) })
-      : await fetch('/api/graph/tbox');
+      : await fetch(kind === 'kb' ? '/api/graph/kb' : '/api/graph/tbox');
     if (!res.ok) throw new Error((await res.json().catch(() => ({}))).detail || res.statusText);
     const d = await res.json();
     CY?.destroy();
     GMODE = kind; GFOR = JSON.stringify(facts());
-    CY = cytoscape({ container: $('#gview'), elements: toEls(d), style: GSTYLE, wheelSensitivity: 0.25, minZoom: 0.15, maxZoom: 3, layout: kind === 'case' ? { name: 'preset' } : GLAYOUT[kind] });
+    CY = cytoscape({ container: $('#gview'), elements: toEls(d), style: GSTYLE, wheelSensitivity: 0.25, minZoom: 0.15, maxZoom: 3, layout: kind === 'tbox' ? GLAYOUT.tbox : { name: 'preset' } });
     CY.on('mouseover', 'node', e => focusNode(e.target));
     CY.on('mouseout', 'node', () => { if (!CY.$(':selected').length) unfocus(); });
     CY.on('tap', 'node', e => { focusNode(e.target); nodeInfo(e.target); });
     CY.on('tap', e => { if (e.target === CY) { unfocus(); graphHint(); } });
     applyFilter();
-    if (kind === 'case') laneLayout();
+    if (kind !== 'tbox') relayout(false);
     graphHint();
   } catch (e) { info.innerHTML = `<p class="note warn">Graph gagal dimuat: ${esc(e.message)}</p>`; }
 }
 function graphHint() {
-  $('#ginfo').innerHTML = `<p class="fine">${GMODE === 'case'
-    ? 'Baca dari kiri ke kanan: aturan yang terpicu membuat inferensi tentang kasus ini; kasus merujuk individu di knowledge base (ABox); setiap individu adalah anggota kelas di ontologi (TBox, garis putus-putus = rdf:type).'
+  $('#ginfo').innerHTML = `<p class="fine">${GMODE === 'kb'
+    ? 'Seluruh knowledge base: setiap kotak adalah kelas TBox, isinya individu ABox anggota kelas itu (angka = jumlah anggota). Relasi antarindividu muncul saat simpul disorot. Cari konsep dengan kotak cari.'
+    : GMODE === 'case'
+    ? 'Baca dari kiri ke kanan: aturan yang terpicu membuat inferensi yang mengusulkan level di skala ESI (kotak tebal = hasil akhir, garis putus-putus = kandidat yang kalah di resolusi konflik, abu-abu = tidak diusulkan); kasus merujuk individu di knowledge base (ABox), dan setiap individu adalah anggota kelas di ontologi (TBox, garis putus-putus = rdf:type).'
     : 'Kerangka TBox: kelas dan property. Panah berujung kosong adalah subClassOf; garis lain adalah object property dari domain ke range.'}
-    ${CY.nodes('[kind!="lane"]').length} simpul, ${CY.edges().length} relasi. Arahkan kursor untuk menyorot hubungan, klik simpul untuk melihat detail.</p>`;
+    ${CY.nodes('[kind!="lane"][^box]').length} simpul, ${CY.edges().length} relasi. Arahkan kursor untuk menyorot hubungan, klik simpul untuk melihat detail.</p>`;
 }
 const unfocus = () => CY.elements().removeClass('faded hl');
 function focusNode(n) {
   unfocus();
-  CY.elements().not(n.closedNeighborhood()).not('[kind="lane"]').addClass('faded');
+  CY.elements().not(n.closedNeighborhood()).not('[kind="lane"], [?box]').addClass('faded');
   n.connectedEdges().addClass('hl');
 }
 const sparqlId = id => id.startsWith(':') ? 'ex' + id : id;
@@ -836,6 +866,22 @@ $('#gfilter').innerHTML = Object.entries(GKIND).map(([k, [t, c]]) => `<label><in
 $('#gfilter').onchange = () => { applyFilter(); if (CY) relayout(); };
 $('#g-case').onclick = () => showGraph('case');
 $('#g-tbox').onclick = () => showGraph('tbox');
+$('#g-kb').onclick = () => showGraph('kb');
+$('#g-search').onsubmit = e => {
+  e.preventDefault();
+  const q = $('#g-q').value.trim().toLowerCase();
+  if (!CY || !q) return;
+  const hit = CY.nodes('[kind!="lane"]').filter(n => n.style('display') !== 'none' && (String(n.data('label')).toLowerCase().includes(q) || n.id().toLowerCase().includes(q)));
+  if (!hit.length) { $('#ginfo').innerHTML = `<p class="note">Tidak ada simpul berisi "${esc(q)}" di tampilan ini. Coba tampilan Knowledge base lengkap.</p>`; return; }
+  CY.$(':selected').unselect();
+  hit.select();
+  unfocus();
+  CY.elements().not(hit.closedNeighborhood()).not('[kind="lane"], [?box]').addClass('faded');
+  hit.connectedEdges().addClass('hl');
+  CY.animate({ fit: { eles: hit.closedNeighborhood(), padding: 60 } }, { duration: 350 });
+  if (hit.length === 1) { focusNode(hit[0]); nodeInfo(hit[0]); }
+  else $('#ginfo').innerHTML = `<p class="fine">${hit.length} simpul cocok: ${hit.map(n => esc(n.data('label'))).slice(0, 12).join(', ')}${hit.length > 12 ? ', ...' : ''}. Klik salah satu untuk detail.</p>`;
+};
 $('#g-fit').onclick = () => CY?.fit(undefined, 16);
 $('#g-relayout').onclick = () => CY && relayout();
 

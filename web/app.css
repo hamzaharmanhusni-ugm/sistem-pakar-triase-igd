@@ -369,6 +369,8 @@ table.dense tr.fired td { background: #123a30; }
 .gprops th { text-align: left; color: #9db3aa; font-weight: 600; padding-right: 10px; white-space: nowrap; vertical-align: top; }
 .gprops td { overflow-wrap: anywhere; }
 
+.gsearch { margin-bottom: 10px; max-width: 520px; }
+
 /* tab Query SPARQL */
 .qlib { display: grid; gap: 10px; }
 .qgroup { display: flex; flex-direction: column; gap: 4px; }

@@ -151,6 +151,12 @@ def graph_case(body: AssessIn):
     return graphview.case_graph(r, str(engine.EX) + sparql.CASE)
 
 
+@app.get('/api/graph/kb')
+def graph_kb():
+    """Seluruh knowledge base untuk tampilan "Knowledge base lengkap"."""
+    return graphview.kb_graph()
+
+
 @app.get('/api/graph/tbox')
 def graph_tbox():
     return graphview.tbox_graph()

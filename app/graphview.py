@@ -95,7 +95,55 @@ def case_graph(result, case_iri):
     # ponytail: setiap inferensi dan aturan bertipe ex:Inference / ex:Rule; garis rdf:type-nya hanya menambah keruwetan,
     # jadi kelas itu disebut di judul lajur antarmuka, bukan digambar
     tr = [t for t in tr if not (t[1] == RDF.type and ('_inf_' in str(t[0]) or str(t[0]).startswith(EX + 'Rule_')))]
-    return _pack(g, tr, focus=(engine.short_node(URIRef(case_iri)),), case_prefix=case_iri)
+    # skala ESI selalu utuh (1 sampai 5) agar hasil terbaca sebagai "ESI 2 dari 5 tingkat", bukan seolah hanya ada dua level
+    levels = sorted(g.subjects(RDF.type, engine.EX.ESILevel), key=str)
+    for lv in levels:
+        tr.append((lv, RDF.type, engine.EX.ESILevel))
+        for o in g.objects(lv, engine.EX.moreAcuteThan):
+            tr.append((lv, engine.EX.moreAcuteThan, o))
+    data = _pack(g, tr, focus=(engine.short_node(URIRef(case_iri)),), case_prefix=case_iri)
+    final, cands = result.get('esi'), set(result.get('candidates') or [])
+    order = {engine.short_node(lv): i for i, lv in enumerate(levels)}
+    for n in data['nodes']:
+        if n['id'] in order:
+            k = int(n['id'].rsplit('_', 1)[1])
+            n.update(kind='esi', order=order[n['id']], esi='final' if k == final else 'candidate' if k in cands else 'none')
+    return data
+
+
+def kb_graph():
+    """Seluruh knowledge base: setiap individu ABox dikelompokkan dalam kotak kelas TBox paling spesifiknya.
+    Relasi antarindividu ikut dikirim, tetapi antarmuka menyembunyikannya sampai simpul disorot."""
+    g = engine.knowledge_base()
+    classes = {c for c in g.subjects(RDF.type, OWL.Class) if str(c).startswith(EX)}
+    sup = {c: {x for x in g.objects(c, RDFS.subClassOf) if x in classes and x != c} for c in classes}  # sudah transitif (closure OWL)
+    members = {}
+    for c in classes:
+        for i in g.subjects(RDF.type, c):
+            if isinstance(i, URIRef) and str(i).startswith(EX) and i not in classes:
+                members.setdefault(i, set()).add(c)
+    box = {}
+    for i, cs in members.items():
+        spec = sorted((c for c in cs if not any(c in sup[o] for o in cs if o != c)), key=str)
+        box.setdefault(spec[0], []).append(i)
+    root = lambda c: min((x for x in sup[c] if not sup[x]), key=str, default=c)  # kelompokkan kotak menurut kelas akar
+    nodes, edges = [], []
+    for c in sorted(box, key=lambda c: (str(root(c)), str(c))):
+        cid = 'box' + engine.short_node(c)
+        parents = sorted(engine.short_node(x).lstrip(':') for x in sup[c])
+        nodes.append({'id': cid, 'box': True, 'kind': 'tbox', 'iri': str(c), 'count': len(box[c]),
+                      'label': f'{engine.short_node(c).lstrip(":")} ({len(box[c])})', 'sub': parents,
+                      'props': [['rdfs:label', str(g.value(c, RDFS.label) or '')]] + ([['rdfs:subClassOf', ', '.join(parents)]] if parents else [])})
+        for i in sorted(box[c], key=str):
+            iid = engine.short_node(i)
+            props = [[engine.short_node(p), str(o)] for p, o in g.predicate_objects(i) if isinstance(o, Literal) and str(p) not in SKIP_P][:10]
+            nodes.append({'id': iid, 'parent': cid, 'kind': 'rule' if c == engine.EX.Rule else 'abox', 'iri': str(i),
+                          'label': 'Aturan ' + iid[6:] if c == engine.EX.Rule else _label(g, i), 'props': props})
+            for p, o in g.predicate_objects(i):
+                if o in members and p != RDF.type and str(p) not in SKIP_P:
+                    edges.append({'id': f'{iid}|{engine.short_node(p)}|{engine.short_node(o)}', 'source': iid, 'target': engine.short_node(o),
+                                  'label': engine.short_node(p), 'rel': 'rel', 'kb': True})
+    return {'nodes': nodes, 'edges': edges}
 
 
 def to_node(t):

@@ -30,3 +30,18 @@ def test_kasus_ini_terbaca_dengan_tipe_angka():
     r = engine.infer(FACTS, sparql.CASE)
     rows = sparql.run('SELECT ?n WHERE { ex:KasusIni ex:heartRate ?n FILTER(?n > 100) }', r, FACTS)['rows']
     assert rows == [[130.0]]
+
+
+def test_graph_kasus_memuat_skala_esi_utuh():
+    from app import graphview
+    r = engine.infer(FACTS, sparql.CASE)
+    esi = {n['id']: n['esi'] for n in graphview.case_graph(r, str(engine.EX) + sparql.CASE)['nodes'] if n['kind'] == 'esi'}
+    assert esi == {':ESI_1': 'none', ':ESI_2': 'final', ':ESI_3': 'none', ':ESI_4': 'none', ':ESI_5': 'candidate'}
+
+
+def test_graph_kb_mengelompokkan_individu_per_kelas():
+    from app import graphview
+    d = graphview.kb_graph()
+    boxes = {n['id']: n['count'] for n in d['nodes'] if n.get('box')}
+    assert boxes['box:ESILevel'] == 5 and boxes['box:Rule'] == 24
+    assert sum(boxes.values()) == sum(1 for n in d['nodes'] if not n.get('box'))
