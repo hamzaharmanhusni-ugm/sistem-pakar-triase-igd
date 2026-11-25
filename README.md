@@ -93,6 +93,15 @@ Aplikasi membaca `.env` saat dijalankan (`app/__init__.py`); berkas ini tercantu
 | `LLM_ENABLED` | `1` | `0` untuk mematikan Claude API |
 | `ANTHROPIC_API_KEY` | | Kunci Claude API |
 
+## Demo daring (Hugging Face Spaces)
+
+Aplikasi berjalan di https://huggingface.co/spaces/Hamzaharman/sistem-pakar-triase-igd (backend rdflib, tanpa GraphDB; hasil penalaran identik).
+
+- Space memakai SDK Gradio di ZeroGPU: aplikasi FastAPI dipasang ke `gr.Server` (`space/space_app.py`). GPU tidak dipakai.
+- Membangun ulang dan mengunggah: `python tools/build_space.py`, lalu `hf upload Hamzaharman/sistem-pakar-triase-igd build/hf-space . --repo-type space`.
+- Kunci Claude API dipasang sebagai secret `ANTHROPIC_API_KEY` di pengaturan Space.
+- **Batas biaya:** `LLM_DAILY_BUDGET_USD` (bawaan 10) menghentikan AI setelah biaya harian (UTC) tercapai, dihitung dari jumlah token. `AI_REQUESTS_PER_IP` (bawaan 30 per 10 menit) membatasi permintaan per pengunjung. Setelah kuota habis, pengunjung dapat memasukkan kunci API sendiri; kunci itu tidak disimpan di server. Sebagai pengaman kedua, pasang batas bulanan workspace di Konsol Anthropic.
+
 ## Pengujian
 
 ```powershell

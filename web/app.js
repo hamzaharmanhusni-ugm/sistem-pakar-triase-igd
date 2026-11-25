@@ -103,7 +103,7 @@ function vitalError() {
 }
 
 async function assess() {
-  const res = await fetch('/api/assess', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(facts()) });
+  const res = await fetch('/api/assess', { method: 'POST', headers: apiHeaders(), body: JSON.stringify(facts()) });
   if (!res.ok) throw new Error((await res.json().catch(() => ({}))).detail || res.statusText);
   const data = await res.json();
   S.result = data.result;
@@ -142,6 +142,7 @@ const VIEWS = {
             `<button class="opt" type="button" data-act="who" data-v="${k}" ${pressed(S.who === k)}>${tick}${t}</button>`).join('')}
         </div>` : ''}
       </div>
+      ${keyBox()}
       ${S.mode === 'nurse' ? cta('Buka formulir triase', !!VOC, 'Memuat pilihan dari knowledge graph...', 'nurse-open') : cta('Mulai cek', S.mode === 'lay' && !!S.who, S.mode ? 'Pilih dulu siapa yang sedang sakit.' : 'Pilih peran Anda.')}</div>`,
 
   age: () => `${progress()}
@@ -357,13 +358,31 @@ function nurseResult() {
 }
 
 /* ---------- penjelasan AI (Claude, KG-RAG): hanya menjelaskan, level ESI tetap dari aturan ---------- */
-let LLM = false;
+let SERVER_AI = false, AI_INFO = null;
+let USER_KEY = (() => { try { return sessionStorage.getItem('claudeKey') || ''; } catch { return ''; } })();
+const aiOn = () => SERVER_AI || !!USER_KEY;
+const apiHeaders = () => ({ 'Content-Type': 'application/json', ...(USER_KEY ? { 'X-Anthropic-Key': USER_KEY } : {}) });
+function keyBox(inline = false) {
+  if (SERVER_AI && !USER_KEY) return '';
+  const b = AI_INFO?.budget;
+  const st = USER_KEY ? 'aktif dengan kunci API Anda'
+    : SERVER_AI ? `aktif (anggaran server hari ini tersisa $${b ? b.remaining_usd.toFixed(2) : '-'} dari $${b ? b.daily_usd.toFixed(0) : '-'})`
+    : b && b.remaining_usd <= 0 ? `kuota gratis hari ini ($${b.daily_usd.toFixed(0)}) sudah habis. Masukkan kunci API Claude Anda untuk melanjutkan`
+    : 'nonaktif. Masukkan kunci API Claude untuk mengaktifkan';
+  return `<details class="keybox" ${inline || (!SERVER_AI && !USER_KEY) ? 'open' : ''}>
+    <summary><b>Penjelasan AI (Claude)</b>: ${esc(st)}</summary>
+    <p class="fine">Opsional. Dengan kunci API Claude sendiri, penjelasan AI memakai kuota Anda dan tidak terkena batas harian server.
+      Kunci hanya disimpan di tab ini dan terhapus saat tab ditutup; server memakainya untuk satu permintaan tanpa menyimpan atau mencatatnya.</p>
+    <form class="own" data-act="savekey"><input class="field" id="ukey" type="password" autocomplete="off" placeholder="${USER_KEY ? 'Kunci tersimpan di tab ini' : 'sk-ant-...'}" aria-label="Kunci API Claude">
+      <button class="btn ghost sm" type="submit">Simpan</button>${USER_KEY ? '<button class="btn ghost sm" type="button" data-act="clearkey">Hapus</button>' : ''}</form>
+    <p class="note warn" id="key-err"></p></details>`;
+}
 const AI_BTN = {
   nurse: [['klinis', 'Detail klinis'], ['insight', 'Insight'], ['teknis', 'Detail teknis'], ['tbox', 'TBox'], ['abox', 'ABox']],
   lay: [['klinis', 'Jelaskan hasil ini'], ['insight', 'Apa yang perlu diperhatikan']],
 };
 function aiBox(aud) {
-  if (!LLM) return '';
+  if (!aiOn()) return AI_INFO ? `<section class="ai-box"><h2>Penjelasan AI</h2>${keyBox(true)}</section>` : '';
   return `<section class="ai-box">
     <h2>Penjelasan AI</h2>
     <p class="ai-note">Dirangkai Claude dari jejak sistem pakar dan knowledge graph kasus ini. Level ESI tetap diputuskan aturan, bukan AI.</p>
@@ -394,11 +413,14 @@ async function explainAI(aspect, question) {
   document.querySelectorAll('[data-act=explain]').forEach(b => b.setAttribute('aria-pressed', !question && b.dataset.v === aspect));
   out.innerHTML = '<p class="ai-wait">Claude sedang menyusun penjelasan...</p>';
   try {
-    const res = await fetch('/api/explain', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...facts(), aspect, question }) });
+    const res = await fetch('/api/explain', { method: 'POST', headers: apiHeaders(), body: JSON.stringify({ ...facts(), aspect, question }) });
     const j = await res.json();
     if (!res.ok) throw new Error(j.detail || res.statusText);
     out.innerHTML = (question ? `<p class="ai-q">${esc(question)}</p>` : '') + md(j.text);
-  } catch (e) { out.innerHTML = `<p class="note warn">${esc(e.message)}</p>`; }
+  } catch (e) {
+    out.innerHTML = `<p class="note warn">${esc(e.message)}</p>`;
+    if (!USER_KEY) fetch('/api/health').then(r => r.json()).then(h => { SERVER_AI = !!h.llm?.enabled; AI_INFO = h.llm; if (!SERVER_AI) draw(); });
+  }
 }
 
 function sbar() {
@@ -538,6 +560,7 @@ document.addEventListener('click', e => {
     case 'restart': reset(); break;
     case 'think': openMind(true); break;
     case 'explain': explainAI(v); break;
+    case 'clearkey': USER_KEY = ''; try { sessionStorage.removeItem('claudeKey'); } catch {} draw(); break;
   }
 });
 document.addEventListener('input', e => {
@@ -552,6 +575,15 @@ document.addEventListener('keydown', e => {
   if (e.key === 'Escape' && !$('#mind').hidden) openMind(false);
 });
 document.addEventListener('submit', e => {
+  if (e.target.dataset.act !== 'savekey') return;
+  e.preventDefault();
+  const k = $('#ukey').value.trim();
+  if (!/^sk-ant-[\w-]{20,}$/.test(k)) { $('#key-err').textContent = 'Kunci API Claude diawali "sk-ant-". Periksa kembali.'; return; }
+  USER_KEY = k;
+  try { sessionStorage.setItem('claudeKey', k); } catch {}
+  draw();
+});
+document.addEventListener('submit', e => {
   if (e.target.dataset.act !== 'ask') return;
   e.preventDefault();
   const q = $('#ask').value.trim();
@@ -564,7 +596,7 @@ document.addEventListener('submit', async e => {
   if (!text) return;
   $('#found').textContent = 'Mengenali keluhan…';
   try {
-    const r = await (await fetch('/api/parse', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text }) })).json();
+    const r = await (await fetch('/api/parse', { method: 'POST', headers: apiHeaders(), body: JSON.stringify({ text }) })).json();
     const ids = r.findings.map(x => x.id);
     const isDanger = id => DANGER.some(([d]) => d === id);
     S.findings = [...new Set([...S.findings, ...ids.filter(id => !isDanger(id))])];
@@ -700,7 +732,7 @@ fetch('/api/rules').then(r => r.json()).then(rs => {
     rs.map(r => `<tr data-rule="${esc(r.id)}"><td>${esc(r.id)}</td><td>${esc(r.if)}</td><td>${esc(r.then)}</td><td>${esc(r.source)}</td></tr>`).join('');
 });
 fetch('/api/health').then(r => r.json()).then(h => {
-  LLM = !!h.llm?.enabled;
+  SERVER_AI = !!h.llm?.enabled; AI_INFO = h.llm; if (STEPS[S.step] === 'welcome') draw();
   $('#kb-stats').innerHTML = `<div><b>${fmt(h.triples_kb)}</b>triple pengetahuan</div><div><b>${h.rules}</b>aturan IF-THEN</div><div><b>${h.backend === 'graphdb' ? 'GraphDB' : 'rdflib'}</b>${h.backend === 'graphdb' ? 'localhost:7201' : 'in-memory'}</div>`;
 });
 if (new URLSearchParams(location.search).has('presentasi')) openMind(true);

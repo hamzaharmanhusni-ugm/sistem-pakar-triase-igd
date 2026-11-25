@@ -26,3 +26,6 @@ data/private/
 
 # data mentah berlisensi PhysioNet credentialed: jangan pernah di-commit
 data/
+
+# paket Hugging Face Space hasil tools/build_space.py
+build/

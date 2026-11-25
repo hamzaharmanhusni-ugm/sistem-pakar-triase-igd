@@ -2,9 +2,12 @@
 1. extract(): ubah teks bebas menjadi fakta terstruktur (structured outputs, ID dibatasi katalog knowledge graph).
 2. narrate(): rangkai jejak penalaran menjadi paragraf. Claude TIDAK menentukan level ESI.
 Bila kredensial tidak ada atau panggilan gagal, aplikasi kembali ke mode lokal (app/nlu.py dan templat)."""
+import contextvars
 import json
 import logging
 import os
+import threading
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Literal, Optional
 
@@ -33,8 +36,56 @@ class Extraction(BaseModel):
     none: bool = False
 
 
+# ---------------------------------------------------------------------------
+# Kunci pengunjung (BYOK) dan batas biaya harian untuk kunci server.
+# Konsol Anthropic hanya menyediakan batas BULANAN per workspace, jadi batas HARIAN dihitung di sini dari token.
+# ---------------------------------------------------------------------------
+VISITOR_KEY: contextvars.ContextVar = contextvars.ContextVar('visitor_key', default=None)  # diisi main.py per permintaan
+DAILY_BUDGET_USD = float(os.getenv('LLM_DAILY_BUDGET_USD', '10'))
+PRICE_PER_MTOK = {  # USD per 1 juta token (input, output); cache tulis 1,25x dan baca 0,1x harga input
+    'claude-haiku-5-5': (0.10, 0.50), 'claude-sonnet-5-5': (2.00, 10.00), 'claude-opus-5-5': (4.00, 20.00),
+}
+_budget = {'day': None, 'spent': 0.0, 'calls': 0}
+_budget_lock = threading.Lock()  # ponytail: penghitung di memori proses; hilang saat restart. Batas bulanan Konsol sebagai pengaman kedua
+
+
+def _today():
+    return datetime.now(timezone.utc).date().isoformat()
+
+
+def budget():
+    with _budget_lock:
+        if _budget['day'] != _today():
+            _budget.update(day=_today(), spent=0.0, calls=0)
+        return {'daily_usd': DAILY_BUDGET_USD, 'spent_usd': round(_budget['spent'], 4),
+                'remaining_usd': round(max(0.0, DAILY_BUDGET_USD - _budget['spent']), 4), 'calls': _budget['calls'], 'day_utc': _budget['day']}
+
+
+def _charge(usage):
+    """Catat biaya satu panggilan dengan kunci server. Panggilan dengan kunci pengunjung tidak dihitung."""
+    if VISITOR_KEY.get() or usage is None:
+        return
+    pin, pout = PRICE_PER_MTOK.get(MODEL, PRICE_PER_MTOK['claude-opus-5-5'])  # model tak dikenal: anggap harga tertinggi
+    n = lambda k: getattr(usage, k, 0) or 0
+    cost = (n('input_tokens') * pin + n('cache_creation_input_tokens') * pin * 1.25
+            + n('cache_read_input_tokens') * pin * 0.1 + n('output_tokens') * pout) / 1e6
+    budget()
+    with _budget_lock:
+        _budget['spent'] += cost
+        _budget['calls'] += 1
+
+
 def _client():
+    key = VISITOR_KEY.get()
+    if key:  # kunci pengunjung: klien sementara, tidak disimpan dan tidak dihitung anggaran server
+        import anthropic
+        return anthropic.Anthropic(api_key=key, max_retries=1)
     if _state['disabled']:
+        return None
+    if budget()['remaining_usd'] <= 0:
+        if _budget.get('warned') != _budget['day']:
+            _budget['warned'] = _budget['day']
+            log.warning('Batas biaya harian Claude API ($%.2f) tercapai; beralih ke mode lokal sampai besok (UTC).', DAILY_BUDGET_USD)
         return None
     if _state['client'] is None:
         try:
@@ -54,8 +105,19 @@ def _disable(e):
 
 
 def status():
-    _client()
-    return {'enabled': not _state['disabled'], 'model': MODEL, 'reason': None if not _state['disabled'] else _state['reason']}
+    """Status kunci SERVER (bukan kunci pengunjung). enabled = AI tersedia tanpa pengunjung memasukkan kunci."""
+    token = VISITOR_KEY.set(None)
+    try:
+        c = _client()
+    finally:
+        VISITOR_KEY.reset(token)
+    b = budget()
+    reason = None
+    if _state['disabled']:
+        reason = _state['reason']
+    elif c is None and b['remaining_usd'] <= 0:
+        reason = f'batas biaya harian ${DAILY_BUDGET_USD:.2f} tercapai; aktif lagi besok (UTC) atau masukkan kunci API sendiri'
+    return {'enabled': c is not None, 'model': MODEL, 'reason': reason, 'budget': b}
 
 
 def _catalog():
@@ -99,6 +161,7 @@ def extract(message, question_text):
     except Exception as e:
         _handle(e)
         return None
+    _charge(getattr(r, 'usage', None))
     if r.stop_reason == 'refusal' or r.parsed_output is None:
         return None
     x = r.parsed_output
@@ -136,6 +199,7 @@ def narrate(result):
     except Exception as e:
         _handle(e)
         return None
+    _charge(getattr(r, 'usage', None))
     if r.stop_reason == 'refusal':
         return None
     text = ''.join(b.text for b in r.content if b.type == 'text').strip()
@@ -248,13 +312,21 @@ def explain(result, facts, aspect='klinis', question=None, audience='nurse'):
     except Exception as e:
         _handle(e)
         return None
+    _charge(getattr(r, 'usage', None))
     if r.stop_reason == 'refusal':
         return None
     return ''.join(b.text for b in r.content if b.type == 'text').strip() or None
 
 
+LAST_ERROR: contextvars.ContextVar = contextvars.ContextVar('llm_error', default=None)
+
+
 def _handle(e):
     import anthropic
+    if VISITOR_KEY.get():  # kesalahan kunci pengunjung tidak boleh mematikan AI untuk pengunjung lain
+        LAST_ERROR.set('Kunci API Anda ditolak Anthropic (periksa kuncinya).' if isinstance(e, anthropic.AuthenticationError)
+                       else f'Panggilan dengan kunci Anda gagal: {type(e).__name__}')
+        return
     if isinstance(e, (anthropic.AuthenticationError, anthropic.PermissionDeniedError, anthropic.NotFoundError, TypeError)):
         _disable(e)  # tidak akan berhasil bila diulang
     else:

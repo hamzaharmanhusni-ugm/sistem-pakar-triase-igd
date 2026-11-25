@@ -1,11 +1,14 @@
 """API chatbot sistem pakar triase IGD. Jalankan: uvicorn app.main:app --port 8000"""
+import os
+import time
 import uuid
+from collections import defaultdict, deque
 from typing import Literal
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException
-from fastapi.responses import FileResponse
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
@@ -23,6 +26,33 @@ async def lifespan(_):
 
 app = FastAPI(title='Sistem Pakar Triase IGD', lifespan=lifespan)
 app.mount('/static', StaticFiles(directory=STATIC), name='static')
+
+AI_PATHS = {'/api/explain', '/api/parse', '/api/assess'}
+AI_PER_IP = int(os.getenv('AI_REQUESTS_PER_IP', '30'))  # per jendela waktu, hanya untuk kunci server
+AI_WINDOW_S = 600
+_hits: dict[str, deque] = defaultdict(deque)  # ponytail: di memori proses; cukup untuk satu instance Space
+
+
+@app.middleware('http')
+async def visitor_key_and_rate_limit(request: Request, call_next):
+    """Kunci API pengunjung (header X-Anthropic-Key) hanya hidup selama satu permintaan: tidak disimpan, tidak dicatat.
+    Permintaan AI dengan kunci server dibatasi per IP agar satu pengunjung tidak menghabiskan anggaran harian."""
+    key = (request.headers.get('x-anthropic-key') or '').strip()
+    if key and not (key.startswith('sk-ant-') and 20 < len(key) < 300):
+        return JSONResponse({'detail': 'Format kunci API tidak dikenal (harus diawali sk-ant-).'}, status_code=400)
+    if request.url.path in AI_PATHS and not key and request.method == 'POST' and llm.status()['enabled']:
+        ip = (request.headers.get('x-forwarded-for') or (request.client.host if request.client else '')).split(',')[0].strip()
+        now, q = time.monotonic(), _hits[ip]
+        while q and now - q[0] > AI_WINDOW_S:
+            q.popleft()
+        if request.url.path == '/api/explain' and len(q) >= AI_PER_IP:
+            return JSONResponse({'detail': f'Batas {AI_PER_IP} permintaan AI per 10 menit tercapai. Coba lagi nanti atau masukkan kunci API sendiri.'}, status_code=429)
+        q.append(now)
+    token = llm.VISITOR_KEY.set(key or None)
+    try:
+        return await call_next(request)
+    finally:
+        llm.VISITOR_KEY.reset(token)
 
 
 class ChatIn(BaseModel):
@@ -127,7 +157,7 @@ def explain(body: ExplainIn):
         raise HTTPException(422, 'Belum ada hasil untuk dijelaskan.')
     text = llm.explain(r, facts, body.aspect, (body.question or '').strip() or None, 'nurse' if nurse else 'lay')
     if text is None:
-        raise HTTPException(503, 'Penjelasan AI tidak tersedia: ' + (llm.status()['reason'] or 'panggilan Claude gagal'))
+        raise HTTPException(503, 'Penjelasan AI tidak tersedia: ' + (llm.LAST_ERROR.get() or llm.status()['reason'] or 'panggilan Claude gagal'))
     return {'text': text, 'aspect': body.aspect, 'model': llm.MODEL}
 
 
