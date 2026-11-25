@@ -629,7 +629,7 @@ $('#backdrop').onclick = () => openMind(false);
 document.querySelectorAll('.mtabs button').forEach(t => t.onclick = () => {
   document.querySelectorAll('.mtabs button').forEach(x => x.setAttribute('aria-selected', x === t));
   document.querySelectorAll('.mpane').forEach(p => p.hidden = p.id !== t.dataset.pane);
-  if (t.dataset.pane === 'm-graph' && (!CY || (GMODE === 'case' && GFOR !== JSON.stringify(facts())))) showGraph(S.result ? 'case' : 'tbox');
+  if (t.dataset.pane === 'm-graph' && (!CY || (GMODE === 'case' && GFOR !== JSON.stringify(caseSource())))) showGraph('case');
   if (t.dataset.pane === 'm-sparql' && !QLIB) loadLib();
 });
 
@@ -789,20 +789,36 @@ const GSTYLE = [
   { selector: 'node[kind="lane"]', style: { shape: 'round-rectangle', width: LANE_W - 24, height: 40, 'background-color': '#e7eeeb', color: '#334155', 'font-size': 11,
     'font-weight': 700, 'text-valign': 'center', 'text-margin-y': 0, 'text-wrap': 'wrap', 'text-max-width': LANE_W - 30, events: 'no', opacity: 1 } },
 ];
+// Contoh kasus (mode perawat) agar graph kasus dapat dilihat tanpa mengisi formulir; satu contoh untuk setiap level ESI
+const GSAMPLES = {
+  esi1: ['ESI 1: lansia henti napas, tidak berespons', { mode: 'nurse', age_years: 70, findings: ['Apnea'], avpu: 'U' }],
+  esi2: ['ESI 2: nyeri dada pada penderita diabetes', { mode: 'nurse', age_years: 58, findings: ['ChestPainACS'], conditions: ['Cond_Diabetes'], pain_sites: ['Region_Chest'], hr: 96, rr: 18, spo2: 97, pain: 6 }],
+  esi2b: ['ESI 2: anak demam dengan tanda vital di danger zone', { mode: 'nurse', age_years: 6, findings: ['Fever', 'Cough'], temp: 39.2, hr: 150, rr: 34, resources: ['Res_Lab', 'Res_IVFluid'] }],
+  esi3: ['ESI 3: nyeri perut, butuh lab dan USG', { mode: 'nurse', age_years: 40, findings: ['AbdominalPain'], pain_sites: ['Region_Abdomen'], hr: 90, rr: 18, pain: 5, resources: ['Res_Lab', 'Res_CT_MRI_USG'] }],
+  esi4: ['ESI 4: keseleo, butuh rontgen', { mode: 'nurse', age_years: 25, findings: ['Sprain'], hr: 80, rr: 16, pain: 3, resources: ['Res_ECG_Xray'] }],
+  esi5: ['ESI 5: ruam gatal ringan', { mode: 'nurse', age_years: 30, findings: ['MinorRash'], hr: 78, rr: 16, resources: [] }],
+};
+$('#g-sample').innerHTML = `<option value="">Hasil triase saat ini</option>` + Object.entries(GSAMPLES).map(([k, [t]]) => `<option value="${k}">Contoh ${esc(t)}</option>`).join('');
+const caseSource = () => { const k = $('#g-sample').value; return k ? GSAMPLES[k][1] : S.result ? facts() : null; };
+$('#g-sample').onchange = () => showGraph('case');
 async function showGraph(kind) {
   const info = $('#ginfo');
-  if (kind === 'case' && !S.result) kind = 'tbox';
+  let note = '';
+  if (kind === 'case' && !caseSource()) {  // belum ada hasil triase: tampilkan contoh, jangan diam-diam pindah ke TBox
+    $('#g-sample').value = 'esi2';
+    note = '<p class="note">Belum ada hasil triase, jadi ditampilkan contoh kasus. Pilih contoh lain di daftar Kasus, atau isi formulir triase untuk melihat kasus Anda sendiri.</p>';
+  }
   info.innerHTML = '<p class="fine">Memuat graph...</p>';
   document.querySelectorAll('#g-case, #g-kb, #g-tbox').forEach(b => b.setAttribute('aria-pressed', b.id === 'g-' + kind));
   try {
     await loadCy();
     const res = kind === 'case'
-      ? await fetch('/api/graph/case', { method: 'POST', headers: apiHeaders(), body: JSON.stringify(facts()) })
+      ? await fetch('/api/graph/case', { method: 'POST', headers: apiHeaders(), body: JSON.stringify(caseSource()) })
       : await fetch(kind === 'kb' ? '/api/graph/kb' : '/api/graph/tbox');
     if (!res.ok) throw new Error((await res.json().catch(() => ({}))).detail || res.statusText);
     const d = await res.json();
     CY?.destroy();
-    GMODE = kind; GFOR = JSON.stringify(facts());
+    GMODE = kind; GFOR = JSON.stringify(caseSource());
     CY = cytoscape({ container: $('#gview'), elements: toEls(d), style: GSTYLE, wheelSensitivity: 0.25, minZoom: 0.15, maxZoom: 3, layout: kind === 'tbox' ? GLAYOUT.tbox : { name: 'preset' } });
     CY.on('mouseover', 'node', e => focusNode(e.target));
     CY.on('mouseout', 'node', () => { if (!CY.$(':selected').length) unfocus(); });
@@ -811,6 +827,7 @@ async function showGraph(kind) {
     applyFilter();
     if (kind !== 'tbox') relayout(false);
     graphHint();
+    if (note) $('#ginfo').insertAdjacentHTML('afterbegin', note);
   } catch (e) { info.innerHTML = `<p class="note warn">Graph gagal dimuat: ${esc(e.message)}</p>`; }
 }
 function graphHint() {

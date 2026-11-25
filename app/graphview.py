@@ -175,12 +175,14 @@ def tbox_graph():
     for c in g.subjects(RDF.type, OWL.Class):
         if not str(c).startswith(EX):
             continue
-        for sup in g.objects(c, RDFS.subClassOf):
-            if str(sup).startswith(EX) or 'prov' in str(sup):
-                if sup != c:
-                    tr.append((c, RDFS.subClassOf, sup))
+        # closure OWL membuat subClassOf transitif; gambar hanya induk langsung (reduksi transitif) agar tidak ada garis ganda
+        sups = {x for x in g.objects(c, RDFS.subClassOf) if x != c and (str(x).startswith(EX) or 'prov' in str(x))
+                and not (x, OWL.equivalentClass, c) in g}
+        for sup in sups:
+            if not any(sup in set(g.objects(o, RDFS.subClassOf)) and o != sup for o in sups):
+                tr.append((c, RDFS.subClassOf, sup))
         for eq in g.objects(c, OWL.equivalentClass):
-            if eq != c and str(eq).startswith(EX):
+            if eq != c and str(eq).startswith(EX) and str(c) < str(eq):  # satu garis untuk pasangan setara
                 tr.append((c, OWL.equivalentClass, eq))
     for p in g.subjects(RDF.type, OWL.ObjectProperty):
         r = g.value(p, RDFS.range)
