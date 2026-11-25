@@ -1,0 +1,6 @@
+# Kelompok: Aturan
+# Pertanyaan: Pertanyaan dialog mana yang dibutuhkan oleh aturan apa?
+# Catatan: ex:neededBy adalah dasar penjelasan WHY (mengapa sistem menanyakan sesuatu).
+SELECT ?urutan ?pertanyaan (GROUP_CONCAT(?id; separator=", ") AS ?dibutuhkan_aturan) WHERE {
+  ?q a ex:Question ; ex:askOrder ?urutan ; ex:questionText ?pertanyaan ; ex:neededBy ?r . ?r ex:ruleId ?id .
+} GROUP BY ?urutan ?pertanyaan ORDER BY ?urutan

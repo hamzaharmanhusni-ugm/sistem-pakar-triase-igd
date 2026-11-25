@@ -1,0 +1,8 @@
+# Kelompok: Riwayat pasien
+# Pertanyaan: Riwayat penyakit dan obat apa yang membawa penanda risiko?
+# Catatan: Penanda ex:riskFlag dibaca aturan B06, B07, B10, dan B12.
+SELECT ?jenis ?nama ?icd10 ?penanda WHERE {
+  ?x ex:riskFlag ?penanda ; skos:prefLabel ?nama ; a ?jenis .
+  FILTER(?jenis IN (ex:Condition, ex:MedicationClass))
+  OPTIONAL { ?x skos:notation ?icd10 }
+} ORDER BY ?jenis ?nama

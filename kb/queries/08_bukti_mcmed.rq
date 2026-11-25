@@ -1,0 +1,7 @@
+# Kelompok: Bukti data
+# Pertanyaan: Berapa kunjungan, persentase rawat inap, dan luaran kritis per level ESI di MC-MED?
+# Catatan: Statistik agregat dari evidence.ttl (MC-MED 1.0.0).
+SELECT ?level ?kunjungan ?rawat_inap ?kritis WHERE {
+  ?e a ex:EvidenceStat ; ex:aboutLevel ?l ; ex:visits ?kunjungan ; ex:admitRate ?rawat_inap ; ex:criticalRate ?kritis .
+  ?l ex:levelNumber ?level .
+} ORDER BY ?level

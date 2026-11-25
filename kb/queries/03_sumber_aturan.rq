@@ -1,0 +1,7 @@
+# Kelompok: Aturan
+# Pertanyaan: Dari mana sumber pustaka setiap aturan?
+# Catatan: Jejak asal pengetahuan (provenance) setiap aturan.
+SELECT ?id ?sumber ?file WHERE {
+  ?r a ex:Rule ; ex:ruleId ?id ; ex:sparqlFile ?file .
+  OPTIONAL { ?r dcterms:bibliographicCitation ?sumber }
+} ORDER BY ?id

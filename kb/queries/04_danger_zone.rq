@@ -1,0 +1,7 @@
+# Kelompok: Ambang tanda vital
+# Pertanyaan: Berapa ambang danger zone nadi dan napas untuk setiap kelompok usia?
+# Catatan: Individu ex:DangerZoneThreshold dibaca aturan D01 (ESI v4, Bab 6).
+SELECT ?usia ?tanda_vital ?pembanding ?batas WHERE {
+  ?t a ex:DangerZoneThreshold ; ex:forAgeGroup ?g ; ex:onVital ?v ; ex:comparator ?pembanding ; ex:limit ?batas .
+  ?g rdfs:label ?usia ; ex:minMonths ?min . ?v rdfs:label ?tanda_vital .
+} ORDER BY ?min ?tanda_vital

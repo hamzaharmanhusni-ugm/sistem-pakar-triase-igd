@@ -1,0 +1,7 @@
+# Kelompok: Kasus yang sedang dibuka
+# Pertanyaan: Fakta apa saja yang tercatat untuk kasus ini dan pasiennya?
+# Catatan: Butuh hasil triase. ex:KasusIni adalah kasus yang sedang dibuka, ex:KasusIni_pasien pasiennya.
+SELECT ?subjek ?predikat ?objek WHERE {
+  VALUES ?subjek { ex:KasusIni ex:KasusIni_pasien }
+  ?subjek ?predikat ?objek .
+} ORDER BY ?subjek ?predikat

@@ -61,6 +61,7 @@
     <button role="tab" aria-selected="false" data-pane="m-cycle">Siklus inferensi</button>
     <button role="tab" aria-selected="false" data-pane="m-kb">Basis pengetahuan</button>
     <button role="tab" aria-selected="false" data-pane="m-graph">Graph</button>
+    <button role="tab" aria-selected="false" data-pane="m-sparql">Query SPARQL</button>
   </nav>
   <div class="mpane" id="m-flow">
     <ol class="flow" id="flow"></ol>
@@ -90,7 +91,26 @@
     <div id="gview" aria-label="Penjelajah knowledge graph"></div>
     <p class="fine" id="ginfo">Pilih graph di atas. Klik simpul untuk membuka tetangganya di knowledge graph; seret untuk menggeser, gulir untuk memperbesar.</p>
   </div>
+  <div class="mpane" id="m-sparql" hidden>
+    <h3>Tanya knowledge graph (Claude)</h3>
+    <p class="fine">Claude menulis query SPARQL, menjalankannya, memperbaiki bila gagal, lalu menjawab dari hasilnya. Query yang dipakai dapat dibuka di editor.</p>
+    <form class="own" id="kg-ask"><input class="field" id="kg-q" maxlength="500" autocomplete="off" aria-label="Pertanyaan untuk knowledge graph"
+      placeholder="Mis. aturan apa saja yang memberi ESI 1?"><button class="btn ghost sm" type="submit">Tanya</button></form>
+    <div id="kg-ans" class="ai-out" aria-live="polite"></div>
+    <h3>Kamus query</h3>
+    <div id="qlib" class="qlib"><p class="fine">Memuat kamus...</p></div>
+    <h3>Editor SPARQL</h3>
+    <textarea id="q-text" class="qedit" spellcheck="false" rows="9" aria-label="Query SPARQL"
+      placeholder="SELECT ?id ?jika WHERE { ?r a ex:Rule ; ex:ruleId ?id ; ex:ifText ?jika } ORDER BY ?id"></textarea>
+    <div class="gbar">
+      <button class="btn primary sm" type="button" id="q-run">Jalankan</button>
+      <button class="btn ghost sm" type="button" id="q-fix">Minta Claude perbaiki</button>
+      <label class="qcase"><input type="checkbox" id="q-case" checked> Sertakan kasus yang sedang dibuka</label>
+    </div>
+    <p class="fine" id="q-info">Hanya query baca (SELECT, ASK, CONSTRUCT, DESCRIBE). Prefix ex:, rdf:, rdfs:, owl:, xsd:, skos:, prov:, dcterms: sudah tersedia. Kasus yang sedang dibuka bernama ex:KasusIni, pasiennya ex:KasusIni_pasien. Menjalankan query manual tidak memakai kuota AI.</p>
+    <div id="q-out" class="qout"></div>
+  </div>
 </aside>
-<script src="/static/app.js?v=10"></script>
+<script src="/static/app.js?v=11"></script>
 </body>
 </html>

@@ -1,0 +1,7 @@
+# Kelompok: Aturan
+# Pertanyaan: Aturan apa saja yang dapat menghasilkan ESI 2?
+# Catatan: Membaca kartu aturan (ABox) di knowledge.ttl: ex:concludes menunjuk level yang disimpulkan.
+SELECT ?id ?jika ?sumber WHERE {
+  ?r a ex:Rule ; ex:ruleId ?id ; ex:concludes ex:ESI_2 ; ex:ifText ?jika .
+  OPTIONAL { ?r dcterms:bibliographicCitation ?sumber }
+} ORDER BY ?id

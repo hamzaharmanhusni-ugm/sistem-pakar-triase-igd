@@ -67,23 +67,26 @@ def case_graph(result, case_iri):
     return _pack(g, tr, focus=(engine.short_node(URIRef(case_iri)),), case_prefix=case_iri)
 
 
+def to_node(t):
+    """Token pendek hasil inferensi (':x', 'a', 'prov:used', '"lit"') kembali menjadi node RDF."""
+    if t.startswith('"'):
+        return Literal(t.strip('"'))
+    if t == 'a':
+        return RDF.type
+    for pre, ns in (('rdf:', str(RDF)), ('rdfs:', str(RDFS)), ('prov:', 'http://www.w3.org/ns/prov#'), ('owl:', str(OWL)), ('skos:', str(SKOS))):
+        if t.startswith(pre):
+            return URIRef(ns + t[len(pre):])
+    return URIRef(EX + t.lstrip(':'))
+
+
 def _case_triples(result):
-    """Ubah triple pendek (':x', ':p', ':o' / '"lit"') dari hasil inferensi kembali menjadi node RDF."""
-    def node(t):
-        if t.startswith('"'):
-            return Literal(t.strip('"'))
-        if t == 'a':
-            return RDF.type
-        for pre, ns in (('rdf:', str(RDF)), ('rdfs:', str(RDFS)), ('prov:', 'http://www.w3.org/ns/prov#'), ('owl:', str(OWL)), ('skos:', str(SKOS))):
-            if t.startswith(pre):
-                return URIRef(ns + t[len(pre):])
-        return URIRef(EX + t.lstrip(':'))
+    """Ubah triple pendek dari hasil inferensi kembali menjadi node RDF."""
     seen = set()
     for triple in list(result['working_memory']) + [x for s in result['steps'] for x in s['added']]:
         key = tuple(triple)
         if key not in seen:
             seen.add(key)
-            yield tuple(node(t) for t in triple)
+            yield tuple(to_node(t) for t in triple)
 
 
 def tbox_graph():

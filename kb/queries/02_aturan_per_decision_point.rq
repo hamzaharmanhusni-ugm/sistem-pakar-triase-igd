@@ -1,0 +1,6 @@
+# Kelompok: Aturan
+# Pertanyaan: Berapa jumlah aturan di setiap Decision Point ESI?
+# Catatan: Agregasi COUNT dan GROUP BY. Aturan pendukung (tanpa Decision Point) tidak ikut dihitung.
+SELECT ?dp (COUNT(?r) AS ?jumlah_aturan) (GROUP_CONCAT(?id; separator=", ") AS ?aturan) WHERE {
+  ?r a ex:Rule ; ex:atDecisionPoint ?dp ; ex:ruleId ?id .
+} GROUP BY ?dp ORDER BY ?dp

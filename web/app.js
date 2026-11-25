@@ -416,7 +416,8 @@ async function explainAI(aspect, question) {
     const res = await fetch('/api/explain', { method: 'POST', headers: apiHeaders(), body: JSON.stringify({ ...facts(), aspect, question }) });
     const j = await res.json();
     if (!res.ok) throw new Error(j.detail || res.statusText);
-    out.innerHTML = (question ? `<p class="ai-q">${esc(question)}</p>` : '') + md(j.text);
+    out.innerHTML = (question ? `<p class="ai-q">${esc(question)}</p>` : '') + md(j.text)
+      + (j.queries?.length ? qList(j.queries) : j.n_queries ? `<p class="fine">Dijawab dari knowledge graph (${j.n_queries} query).</p>` : '');
   } catch (e) {
     out.innerHTML = `<p class="note warn">${esc(e.message)}</p>`;
     if (!USER_KEY) fetch('/api/health').then(r => r.json()).then(h => { SERVER_AI = !!h.llm?.enabled; AI_INFO = h.llm; if (!SERVER_AI) draw(); });
@@ -629,6 +630,80 @@ document.querySelectorAll('.mtabs button').forEach(t => t.onclick = () => {
   document.querySelectorAll('.mtabs button').forEach(x => x.setAttribute('aria-selected', x === t));
   document.querySelectorAll('.mpane').forEach(p => p.hidden = p.id !== t.dataset.pane);
   if (t.dataset.pane === 'm-graph' && !CY) showGraph(S.result ? 'case' : 'tbox');
+  if (t.dataset.pane === 'm-sparql' && !QLIB) loadLib();
+});
+
+/* ---------- Query SPARQL: agent Claude, kamus query, dan editor manual ---------- */
+let QLIB = null, QLAST_ERR = null;
+const QBUF = [];  // query dari jawaban Claude, dirujuk tombol "Buka di editor"
+function qList(qs) {
+  return `<details class="qused"><summary>Query yang digunakan (${qs.length})</summary>${qs.map(q => {
+    QBUF.push(q.query);
+    return `<div class="qitem"><pre class="code">${sparqlHtml(q.query)}</pre><p class="fine">${q.error ? 'Gagal: ' + esc(q.error) : q.count + ' baris'}
+      <button class="btn ghost sm" type="button" data-qopen="${QBUF.length - 1}">Buka di editor</button></p></div>`;
+  }).join('')}</details>`;
+}
+const caseFacts = () => S.result && $('#q-case')?.checked !== false ? facts() : null;
+async function loadLib() {
+  try {
+    QLIB = await (await fetch('/api/queries')).json();
+    const groups = [...new Set(QLIB.map(q => q.group))];
+    $('#qlib').innerHTML = groups.map(g => `<div class="qgroup"><b>${esc(g)}</b>${QLIB.map((q, i) => q.group !== g ? '' :
+      `<button type="button" class="qpick" data-qlib="${i}" title="${esc(q.note)}">${esc(q.question)}${q.needs_case ? ' <small>(butuh hasil triase)</small>' : ''}</button>`).join('')}</div>`).join('');
+  } catch (e) { $('#qlib').innerHTML = `<p class="note warn">Kamus gagal dimuat: ${esc(e.message)}</p>`; }
+}
+function openQuery(text, run = true) {
+  $('#q-text').value = text;
+  document.querySelector('[data-pane="m-sparql"]').click();
+  $('#q-text').scrollIntoView({ block: 'center', behavior: 'smooth' });
+  if (run) runQuery();
+}
+async function runQuery() {
+  const out = $('#q-out'), query = $('#q-text').value.trim();
+  if (!query) return;
+  out.innerHTML = '<p class="fine">Menjalankan query...</p>';
+  try {
+    const res = await fetch('/api/sparql', { method: 'POST', headers: apiHeaders(), body: JSON.stringify({ query, facts: caseFacts() }) });
+    const j = await res.json();
+    if (!res.ok) throw new Error(typeof j.detail === 'string' ? j.detail : JSON.stringify(j.detail));
+    QLAST_ERR = j.count ? null : 'hasil kosong';
+    const cell = v => v === null ? '' : esc(typeof v === 'number' ? String(v).replace('.', ',') : v);
+    out.innerHTML = `<p class="fine">${j.count} baris${j.truncated ? ' (ditampilkan 200)' : ''}, ${j.ms} ms${j.case ? ', termasuk kasus ex:KasusIni' : ''}.</p>`
+      + (j.count ? `<div class="qtable"><table class="dense"><thead><tr>${j.vars.map(v => `<th>${esc(v)}</th>`).join('')}</tr></thead>
+        <tbody>${j.rows.map(r => `<tr>${r.map(v => `<td>${cell(v)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`
+        : '<p class="note">Tidak ada baris yang cocok. Periksa nama kelas atau property, atau minta Claude memperbaikinya.</p>');
+  } catch (e) {
+    QLAST_ERR = e.message;
+    out.innerHTML = `<p class="note warn">${esc(e.message)}</p>`;
+  }
+}
+async function kgAsk(body, label) {
+  const out = $('#kg-ans');
+  out.innerHTML = '<p class="ai-wait">Claude sedang menulis dan menjalankan query...</p>';
+  try {
+    const res = await fetch('/api/sparql/ask', { method: 'POST', headers: apiHeaders(), body: JSON.stringify({ ...body, facts: caseFacts() }) });
+    const j = await res.json();
+    if (!res.ok) throw new Error(j.detail || res.statusText);
+    out.innerHTML = `<p class="ai-q">${esc(label)}</p>${md(j.text)}${j.queries.length ? qList(j.queries) : ''}`;
+    const ok = [...j.queries].reverse().find(q => !q.error);
+    if (body.query && ok) openQuery(ok.query);  // mode perbaikan: query hasil perbaikan langsung masuk editor
+  } catch (e) { out.innerHTML = `<p class="note warn">${esc(e.message)}</p>`; }
+}
+$('#q-run').onclick = runQuery;
+$('#q-text').addEventListener('keydown', e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) runQuery(); });
+$('#q-fix').onclick = () => {
+  const query = $('#q-text').value.trim();
+  if (query) kgAsk({ query, error: QLAST_ERR }, 'Perbaiki query di editor');
+};
+$('#kg-ask').onsubmit = e => {
+  e.preventDefault();
+  const q = $('#kg-q').value.trim();
+  if (q) kgAsk({ question: q }, q);
+};
+document.addEventListener('click', e => {
+  const lib = e.target.closest('[data-qlib]'), open = e.target.closest('[data-qopen]');
+  if (lib) openQuery(QLIB[+lib.dataset.qlib].query);
+  if (open) { openMind(true); openQuery(QBUF[+open.dataset.qopen]); }
 });
 
 /* ---------- penjelajah knowledge graph (Cytoscape.js, dimuat saat tab Graph dibuka) ---------- */

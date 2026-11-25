@@ -1,0 +1,6 @@
+# Kelompok: TBox
+# Pertanyaan: Wilayah tubuh mana saja yang termasuk perut?
+# Catatan: Property path skos:broader+ menelusuri hierarki wilayah tubuh sampai ke atas.
+SELECT ?wilayah ?nama WHERE {
+  ?wilayah a ex:BodyRegion ; skos:prefLabel ?nama ; skos:broader+ ex:Region_Abdomen .
+} ORDER BY ?nama

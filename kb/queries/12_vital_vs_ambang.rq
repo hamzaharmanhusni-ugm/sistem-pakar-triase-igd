@@ -1,0 +1,13 @@
+# Kelompok: Kasus yang sedang dibuka
+# Pertanyaan: Apakah nadi atau napas pasien ini melewati ambang danger zone usianya?
+# Catatan: Menggabungkan fakta kasus dengan ambang di knowledge base. Usia dibaca dalam bulan.
+SELECT ?tanda_vital ?nilai ?batas ?melewati WHERE {
+  ex:KasusIni ?p ?nilai .
+  VALUES (?p ?v) { (ex:heartRate ex:HR) (ex:respRate ex:RR) }
+  OPTIONAL { ex:KasusIni ex:age ?th } OPTIONAL { ex:KasusIni ex:ageMonths ?bl }
+  BIND(COALESCE(?bl, ?th * 12) AS ?bulan)
+  ?t a ex:DangerZoneThreshold ; ex:onVital ?v ; ex:limit ?batas ; ex:forAgeGroup ?g .
+  ?g ex:minMonths ?min ; ex:maxMonths ?max . FILTER(?bulan >= ?min && ?bulan < ?max)
+  ?v rdfs:label ?tanda_vital .
+  BIND(?nilai > ?batas AS ?melewati)
+}

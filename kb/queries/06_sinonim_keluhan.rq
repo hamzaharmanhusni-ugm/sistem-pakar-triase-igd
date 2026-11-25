@@ -1,0 +1,7 @@
+# Kelompok: Keluhan
+# Pertanyaan: Apa saja sinonim yang dikenali untuk keluhan nyeri dada?
+# Catatan: skos:altLabel dipakai modul NLU lokal untuk mengenali keluhan teks bebas. Ganti "dada" untuk keluhan lain.
+SELECT ?temuan ?label ?sinonim WHERE {
+  ?temuan skos:prefLabel ?label ; skos:altLabel ?sinonim .
+  FILTER(CONTAINS(LCASE(STR(?label)), "dada"))
+} ORDER BY ?temuan ?sinonim

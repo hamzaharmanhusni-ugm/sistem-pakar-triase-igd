@@ -1,0 +1,8 @@
+# Kelompok: TBox
+# Pertanyaan: Apa saja subkelas Finding beserta jumlah anggotanya?
+# Catatan: rdfs:subClassOf berasal dari TBox; jumlah anggota dihitung dari ABox.
+SELECT ?kelas ?label (COUNT(?x) AS ?anggota) WHERE {
+  ?kelas rdfs:subClassOf ex:Finding . FILTER(?kelas != ex:Finding)
+  OPTIONAL { ?kelas rdfs:label ?label }
+  OPTIONAL { ?x a ?kelas }
+} GROUP BY ?kelas ?label ORDER BY DESC(?anggota)

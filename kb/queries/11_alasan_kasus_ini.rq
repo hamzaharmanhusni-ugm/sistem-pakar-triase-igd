@@ -1,0 +1,7 @@
+# Kelompok: Kasus yang sedang dibuka
+# Pertanyaan: Aturan apa yang terpicu pada kasus ini dan apa alasannya?
+# Catatan: Node ex:Inference (PROV-O) yang dibuat aturan saat forward chaining.
+SELECT ?aturan ?kesimpulan ?alasan WHERE {
+  ?inf a ex:Inference ; ex:aboutCase ex:KasusIni ; ex:usedRule ?r ; ex:concluded ?kesimpulan .
+  ?r ex:ruleId ?aturan . OPTIONAL { ?inf ex:reason ?alasan }
+} ORDER BY ?aturan
