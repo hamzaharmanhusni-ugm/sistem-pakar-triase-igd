@@ -34,6 +34,14 @@ JOBS = {
         'toc': True,
         'figs': {},
     },
+    'asal': {
+        'sources': [ROOT / '06 - Asal Pengetahuan (Buku dan Data).md'],
+        'name': 'Asal Pengetahuan - Kutipan Buku ESI dan Data MC-MED',
+        'title': 'Asal Pengetahuan Sistem Pakar Triase IGD',
+        'subtitle': 'Letak kutipan setiap aturan pada buku ESI v4 (Gilboy 2012) dan asal statistik dari data MC-MED',
+        'toc': False,
+        'figs': {},
+    },
     'ringkasan': {
         'sources': [DOCS_DIR / 'Ringkasan TBox ABox dan Aturan.md'],
         'name': 'Ringkasan - TBox, ABox, dan Aturan Sistem Pakar Triase IGD',
@@ -201,7 +209,7 @@ def build(job):
     toc = '<p class="toc-title">Daftar Isi</p><p>[[TOC]]</p>' if job['toc'] else ''
     if not job['toc']:
         parts = parts.replace('<p>[[PB]]</p>', '', 1)                   # tanpa daftar isi: sampul langsung diikuti bab 1
-        toc = '<p>[[PB]]</p>'
+        toc = ''  # sampul sudah diakhiri pemisah halaman; menambah satu lagi membuat halaman kosong
     cover = f"""<div class="cover"><p><img src="{LOGO.as_uri()}"></p>
       <p class="t">{job['title']}</p><p class="s">{job['subtitle']}</p>
       <p class="m">Mata kuliah Sistem Pakar Lanjut<br>Magister Kecerdasan Artifisial, FMIPA Universitas Gadjah Mada<br><br>

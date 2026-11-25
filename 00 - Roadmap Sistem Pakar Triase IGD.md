@@ -3,9 +3,7 @@ title: Roadmap Sistem Pakar Triase IGD
 mata_kuliah: Sistem Pakar Lanjut
 jenis: project-akhir
 domain: Triase Instalasi Gawat Darurat (Emergency Department)
-status: perencanaan
-dibuat: 2026-11-22
-target_presentasi: 2026-12-20
+status: berjalan
 tags:
   - spl
   - project-akhir
@@ -74,8 +72,8 @@ Catatan sebelum UTS yang relevan: [[00 - Peta Mata Kuliah]] (CPMK .2 dan .4) dan
 Tenggat: **24 November 2026**
 
 - [ ] Konfirmasi tanggal presentasi dan anggota kelompok
-- [ ] Buat repository GitHub `sistem-pakar-triase-igd` (privat dahulu, publik setelah data dibersihkan)
-- [ ] Siapkan struktur folder di `Sistem Pakar - ED/`:
+- [x] Buat repository GitHub `sistem-pakar-triase-igd` (publik; data credentialed tidak ikut, dicek gitleaks sebelum setiap push)
+- [x] Siapkan struktur folder di `Sistem Pakar - ED/` (antarmuka web dipisah ke `web/`):
   ```text
   Sistem Pakar - ED/
   ├── kb/            ontologi + aturan (.ttl, .rq)
@@ -85,8 +83,8 @@ Tenggat: **24 November 2026**
   ├── docs/          laporan, gambar, PPT
   └── README.md
   ```
-- [ ] Python 3.12, `uv` atau `venv`; dependensi awal: `rdflib`, `owlrl`, `fastapi`, `uvicorn`, `anthropic`, `pytest`, `pytest-playwright`
-- [ ] Simpan `ANTHROPIC_API_KEY` di `.env`, masukkan `.env` ke `.gitignore`
+- [x] Python 3.10 dengan `venv`; dependensi awal: `rdflib`, `owlrl`, `fastapi`, `uvicorn`, `anthropic`, `pytest`, `pytest-playwright`
+- [x] Simpan `ANTHROPIC_API_KEY` di `.env`, masukkan `.env` ke `.gitignore` (dibaca otomatis oleh `app/__init__.py`)
 
 > [!danger] Kepatuhan data PhysioNet
 > MC-MED dan MIMIC-IV-ED berlisensi credentialed. File `triagekg.ttl` (65 MB, data tingkat kunjungan) **tidak boleh masuk repository publik**. Repository hanya memuat ontologi, aturan, statistik agregat, kasus sintetis, dan subset demo yang lisensinya terbuka.
@@ -142,10 +140,10 @@ Langkah kerja:
 - [x] Pisahkan TBox ke `kb/triage-ontology.ttl` dengan kelas di atas; pertahankan IRI lama (`ex:EDVisit`, `ex:ESILevel`, dst.) melalui `owl:equivalentClass` agar query Tugas 4 tetap berjalan
 - [x] ~~Modelkan vital sign sebagai observasi SOSA~~ diganti anotasi `ex:measures` pada property tanda vital (keputusan K5 di [[01 - Representasi Pengetahuan#Keputusan desain]])
 - [x] Representasikan **aturan sebagai individu** kelas `ex:Rule` (id, deskripsi, sumber DOI/URL, prioritas); teks SPARQL-nya disimpan di `kb/rules/*.rq`
-- [ ] Tambahkan hierarki ICD-10-CM (bab, blok, kode) dari data publik CMS
+- [ ] Tambahkan hierarki ICD-10-CM (bab, blok, kode) dari data publik CMS (sebagian: kode blok ICD-10 pada 11 riwayat penyakit di v2.2, hierarkinya belum)
 - [ ] Tambahkan kosakata gejala dari Symptom Ontology (SYMP) untuk 30 sampai 50 keluhan utama tersering
 - [x] Validasi bentuk data kasus dengan **SHACL** (`kb/shapes.ttl`): vital sign wajib numerik, rentang masuk akal, usia wajib ada
-- [ ] Gambar ulang diagram ontologi (lanjutan Diagram 3 dan 4 Tugas 4)
+- [x] Gambar ulang diagram ontologi (`docs/figures/ontologi.png`, `docs/figures/ba-hierarki-tbox.png`)
 
 ### Database yang perlu diunduh
 
@@ -178,9 +176,9 @@ Setiap aturan ditulis dalam tiga bentuk: kalimat IF-THEN untuk laporan, individu
 
 Langkah kerja:
 
-- [ ] Tulis 15 sampai 25 aturan di `kb/rules/` dengan nama `A01_apnea.rq`, `D03_hr_anak.rq`, dst.
-- [ ] Tetapkan **prioritas** (A > B > D/E > C) sebagai strategi resolusi konflik; level ESI akhir = level paling akut dari aturan yang terpicu
-- [ ] Susun **tabel keputusan** (decision table) per decision point untuk lampiran laporan
+- [x] Tulis 15 sampai 25 aturan di `kb/rules/` (24 aturan pada v2.2) dengan nama `A01_apnea.rq`, `D03_hr_anak.rq`, dst.
+- [x] Tetapkan **prioritas** (A > B > D/E > C) sebagai strategi resolusi konflik; level ESI akhir = level paling akut dari aturan yang terpicu
+- [x] Susun **tabel keputusan** (decision table) per decision point untuk lampiran laporan (Bab 7 bahan ajar)
 - [ ] Minta validasi minimal satu tenaga kesehatan (perawat/dokter IGD) sebagai "pakar"; catat nama, tanggal, dan revisi yang diusulkan
 - [ ] Pertahankan R1 sampai R3 Tugas 4 sebagai aturan analitik atas data MC-MED
 
@@ -211,10 +209,10 @@ Sebagai bukti empiris, penjelasan juga menampilkan statistik MC-MED dari Q2 dan 
 
 Langkah kerja:
 
-- [ ] Modul `app/engine.py`: muat ontologi + aturan, terima fakta kasus, jalankan siklus inferensi, kembalikan level ESI + graph penjelasan
-- [ ] Tangani data yang tidak lengkap: apabila fakta kunci kosong, mesin mengembalikan pertanyaan lanjutan, bukan menebak
-- [ ] Simpan statistik agregat MC-MED ke `kb/evidence.ttl` (angka agregat saja)
-- [ ] Opsional: jalankan versi yang sama di GraphDB 11 untuk demo visual graph (memakai `migrate_graphdb11.py`)
+- [x] Modul `app/engine.py`: muat ontologi + aturan, terima fakta kasus, jalankan siklus inferensi, kembalikan level ESI + graph penjelasan
+- [x] Tangani data yang tidak lengkap: apabila fakta kunci kosong, mesin mengembalikan pertanyaan lanjutan, bukan menebak
+- [x] Simpan statistik agregat MC-MED ke `kb/evidence.ttl` (angka agregat saja)
+- [x] Opsional: jalankan versi yang sama di GraphDB 11 untuk demo visual graph (repository `triage-es`, paritas hasil diuji)
 
 ## F4 Integrasi LLM Claude API
 
@@ -228,9 +226,9 @@ Tenggat: **11 Desember 2026**
 
 Langkah kerja:
 
-- [ ] `app/llm.py` dengan SDK `anthropic`; model default `claude-haiku-5-5` (cepat dan murah untuk ekstraksi), `claude-sonnet-5-5` untuk narasi
-- [ ] Prompt caching untuk system prompt yang memuat daftar kosakata gejala
-- [ ] Mode tanpa LLM (`LLM_ENABLED=false`): form terstruktur tetap berfungsi penuh, sehingga demo aman apabila koneksi internet bermasalah
+- [x] `app/llm.py` dengan SDK `anthropic`; model `claude-haiku-5-5` untuk ekstraksi, narasi, dan penjelasan AI
+- [x] Prompt caching untuk system prompt yang memuat daftar kosakata gejala
+- [x] Mode tanpa LLM (`LLM_ENABLED=0`): form terstruktur tetap berfungsi penuh, sehingga demo aman apabila koneksi internet bermasalah
 - [ ] Uji 20 keluhan dari MIMIC-IV-ED demo: bandingkan hasil ekstraksi dengan anotasi manual
 
 ## F5 Aplikasi dan pengujian
@@ -239,25 +237,25 @@ Tenggat: **15 Desember 2026**
 
 ### Aplikasi
 
-- [ ] Backend FastAPI: `POST /triage` (fakta → hasil + penjelasan), `GET /rules` (daftar aturan beserta sumber), `GET /stats`
-- [ ] Halaman web: form vital sign + keluhan, kartu hasil ESI berwarna, panel penjelasan (pohon HOW), tombol "Mengapa ditanyakan?" (WHY)
-- [ ] Riwayat konsultasi cukup disimpan dalam berkas JSON/SQLite lokal; database tambahan belum diperlukan karena knowledge graph sudah menjadi penyimpan pengetahuan
+- [x] Backend FastAPI: `POST /api/assess`, `POST /api/explain`, `GET /api/rules`, `GET /api/vocab`, `GET /api/health`
+- [x] Halaman web: form vital sign + keluhan, kartu hasil ESI berwarna, panel penjelasan (pohon HOW), tombol "Mengapa ditanyakan?" (WHY)
+- [ ] Riwayat konsultasi cukup disimpan dalam berkas JSON/SQLite lokal (tidak dikerjakan: data pasien sengaja tidak disimpan)
 
 ### Pengujian
 
-- [ ] **Unit test aturan** (pytest): 30 kasus emas, minimal satu kasus per aturan, termasuk kasus batas (HR tepat 100, SpO2 tepat 92, usia tepat 3 bulan)
-- [ ] **End-to-end** dengan Playwright: isi form → hasil ESI → buka penjelasan → mode tanpa LLM
+- [x] **Unit test aturan** (pytest): 30 kasus emas (35 kasus emas, total 73 tes), minimal satu kasus per aturan, termasuk kasus batas (HR tepat 100, SpO2 tepat 92, usia tepat 3 bulan)
+- [x] **End-to-end** dengan Playwright (8 skenario): isi form → hasil ESI → buka penjelasan → mode tanpa LLM
 - [ ] **Evaluasi**: bandingkan ESI rekomendasi sistem dengan ESI perawat pada MIMIC-IV-ED demo; laporkan akurasi, tabel confusion matrix, dan analisis undertriage/overtriage
 
 > [!note] Playwright MCP
-> Konfigurasi `.mcp.json` di folder SPL sudah memuat `@playwright/mcp`, namun koneksinya gagal (timeout) pada sesi 22 November 2026. Pengujian otomatis tetap dijalankan dengan `pytest-playwright` dari terminal; MCP digunakan kembali hanya untuk eksplorasi manual setelah koneksinya diperbaiki.
+> Koneksi Playwright MCP sudah diperbaiki (dipasang global, dijalankan dengan Chrome). Pengujian otomatis tetap memakai `pytest-playwright`; MCP digunakan untuk pemeriksaan tampilan.
 
 ## F6 Dokumentasi dan deliverable
 
 Tenggat: **19 Desember 2026**
 
-- [ ] **README.md**: deskripsi, arsitektur, cara instalasi, cara menjalankan (`uvicorn app.main:app`), cara menjalankan tes, variabel lingkungan, catatan lisensi data
-- [ ] **Laporan PDF** dengan struktur:
+- [x] **README.md**: deskripsi, arsitektur, cara instalasi, cara menjalankan (`uvicorn app.main:app`), cara menjalankan tes, variabel lingkungan, catatan lisensi data
+- [x] **Laporan PDF** dengan struktur (versi 16 aturan; perlu diperbarui ke v2.2):
   1. Pendahuluan (masalah undertriage di IGD, tujuan)
   2. Tinjauan pustaka (sistem pakar, KG, ESI v4, sistem hibrida ES + LLM)
   3. Akuisisi pengetahuan (sumber, wawancara pakar, tabel keputusan)
@@ -267,7 +265,7 @@ Tenggat: **19 Desember 2026**
   7. Integrasi LLM (peran, batasan, contoh)
   8. Implementasi dan pengujian (tangkapan layar, hasil tes, evaluasi)
   9. Kesimpulan, keterbatasan, saran
-- [ ] **PPT** 12 sampai 15 slide; skrip build PPT Tugas 4 (`build_ppt_v3.py`) dapat menjadi titik awal
+- [x] **PPT** 12 sampai 15 slide (17 slide + 15 slide materi; perlu diperbarui ke v2.2); skrip build PPT Tugas 4 (`build_ppt_v3.py`) dapat menjadi titik awal
 - [ ] Skenario demo 5 menit dengan tiga kasus: dewasa nyeri dada (ESI 2), anak demam dengan danger zone (uptriage), keseleo pergelangan kaki (ESI 4/5)
 
 ## F7 Gladi dan presentasi
@@ -279,6 +277,27 @@ Tenggat: **20 Desember 2026**
 - [ ] Rekam video demo cadangan
 
 ---
+
+## Pekerjaan di luar rencana awal (selesai)
+
+- [x] Audit klinis sebagai perawat triase dan rencana perbaikan: [[03 - Audit Klinis dan Rencana Perbaikan]]
+- [x] Mode perawat dan model data pasien (ontologi v2.2: riwayat, obat, kehamilan, onset, lokasi nyeri; aturan B06 sampai B12 dan G02)
+- [x] Dokumen data dan sumber: [[04 - Data dan Sumber Pengetahuan]], [[05 - Memahami Berkas TTL]], [[06 - Asal Pengetahuan (Buku dan Data)]]
+- [x] Bahan ajar TBox, ABox, dan aturan (52 halaman) beserta ringkasan presentasi (13 halaman), PDF dan Word
+- [x] Versi ringkas knowledge graph tanda vital dewasa (`kb-tanda-vital/`)
+- [x] Excel data kunjungan MC-MED berkomentar (lokal, `data/processed/`)
+- [x] PDF buku ESI berstabilo dan berkomentar per aturan (lokal, `data/sumber/`)
+- [x] Penjelasan AI berbasis KG-RAG: detail klinis, insight, detail teknis, TBox, ABox, dan pertanyaan lanjutan
+- [x] Skrip perbaikan Docker Desktop (`tools/perbaiki_docker.ps1`)
+
+## Sisa pekerjaan utama
+
+- [ ] Perbarui laporan akhir, PPT, dan dokumen pendukung ke ontologi v2.2 (24 aturan, mode perawat, penjelasan AI)
+- [ ] Tambahkan nama anggota kelompok di sampul laporan dan PPT
+- [ ] Validasi aturan oleh perawat atau dokter IGD, terutama B06, B08, B12
+- [ ] Evaluasi dengan kasus latihan Bab 9 dan 10 buku ESI (audit V1)
+- [ ] Video demo (motion video)
+- [ ] Deploy (opsional)
 
 ## Linimasa
 
@@ -332,3 +351,5 @@ Untuk kelompok tiga orang, gabungkan peran pertama dan kedua.
 | 2026-11-22 | Domain: triase IGD berbasis ESI v4 | Melanjutkan KG Tugas 4, data dan referensi sudah tersedia |
 | 2026-11-22 | Mesin inferensi dengan `rdflib` + `owlrl` di aplikasi; GraphDB untuk demo visual | Aplikasi mandiri tanpa server GraphDB, mudah dijalankan penguji dari README |
 | 2026-11-22 | Claude tidak menentukan level ESI | Sistem pakar tetap inti; keputusan dapat ditelusuri ke aturan dan sumbernya |
+| 2026-11-23 | Pengguna utama: perawat triase, mode awam sebagai pra-triase | ESI adalah alat perawat; penilaian AVPU dan resource butuh tenaga terlatih |
+| 2026-11-25 | Model Claude: Haiku 5.5; penjelasan AI memakai KG-RAG | Cepat dan murah; Claude hanya menerima potongan knowledge graph kasus sehingga tidak dapat mengarang atau mengubah level |
