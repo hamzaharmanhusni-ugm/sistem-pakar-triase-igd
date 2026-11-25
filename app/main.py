@@ -7,12 +7,12 @@ from typing import Literal
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-from . import dialog, engine, graphdb, llm, nlu
+from . import dialog, engine, graphdb, graphview, llm, nlu
 
 STATIC = Path(__file__).resolve().parent.parent / 'web'  # frontend dipisah di folder web/
 SESSIONS: dict[str, dialog.Session] = {}  # ponytail: sesi di memori proses; pindahkan ke Redis/DB bila multi-worker
@@ -141,6 +141,25 @@ def _run(body: AssessIn):
 def assess(body: AssessIn):
     r, _, _ = _run(body)
     return {'result': r, 'narrative': (llm.narrate(r) if r['esi'] else None) or dialog.template_narrative(r), 'llm': llm.status()}
+
+
+@app.post('/api/graph/case')
+def graph_case(body: AssessIn):
+    """Graph satu kasus untuk tab Graph: fakta, jejak penalaran, dan konteks knowledge base yang disentuh."""
+    r, _, _ = _run(body)
+    case = next((s for s, _, _ in r['working_memory'] if s.startswith(':') and '_pasien' not in s), ':Kasus')
+    return graphview.case_graph(r, str(engine.EX) + case.lstrip(':'))
+
+
+@app.get('/api/graph/tbox')
+def graph_tbox():
+    return graphview.tbox_graph()
+
+
+@app.get('/api/graph/node')
+def graph_node(iri: str = Query(min_length=2, max_length=300, pattern=r'^[:\w./#-]+$')):
+    """Tetangga satu simpul knowledge base, untuk menjelajah dengan klik."""
+    return graphview.neighbors(iri)
 
 
 class ExplainIn(AssessIn):

@@ -221,7 +221,7 @@ body.on-result .foot .tech-link { display: none; }
 .mind-head h2 { font-size: 1.35rem; font-weight: 800; color: #fff; letter-spacing: -.02em; }
 .mind-head p { color: #9db3aa; font-size: .95rem; margin-top: 4px; max-width: 52ch; }
 .icon-btn { width: 44px; height: 44px; border-radius: 50%; border: 1px solid #2c3d36; background: transparent; color: #cfe0d8; display: grid; place-items: center; cursor: pointer; flex-shrink: 0; }
-.mtabs { display: grid; grid-template-columns: repeat(4, auto); justify-content: start; gap: 4px; padding: 0 18px; border-bottom: 1px solid #22322b; }
+.mtabs { display: grid; grid-template-columns: repeat(5, auto); justify-content: start; gap: 4px; padding: 0 18px; border-bottom: 1px solid #22322b; }
 .mtabs button { font: 600 .95rem var(--font); background: none; border: 0; color: #9db3aa; padding: 10px 10px 12px; min-height: 44px; cursor: pointer; border-bottom: 2px solid transparent; }
 .mtabs button[aria-selected="true"] { color: #fff; border-bottom-color: #5fd3b6; }
 .mpane { overflow-y: auto; padding: 18px 24px 28px; flex: 1; }
@@ -350,3 +350,11 @@ table.dense tr.fired td { background: #123a30; }
 .keybox .fine { color: var(--ink-3); font-size: .88rem; margin: 0 0 10px; }
 .keybox .own { display: flex; gap: 8px; flex-wrap: wrap; }
 .keybox .own .field { flex: 1 1 220px; }
+
+/* tab Graph: penjelajah knowledge graph */
+.gbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 10px; }
+.glegend { font-size: .78rem; color: #9db3aa; display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: center; }
+.glegend i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 4px; vertical-align: -1px; }
+.k-case { background: #0f6b5c; } .k-inference { background: #c2410c; } .k-rule { background: #7c3aed; }
+.k-abox { background: #2563eb; } .k-tbox { background: #475569; } .k-literal { background: #a3a3a3; }
+#gview { height: min(62vh, 560px); background: #f8faf9; border-radius: 14px; }

@@ -60,6 +60,7 @@
     <button role="tab" aria-selected="false" data-pane="m-trace">Jejak aturan</button>
     <button role="tab" aria-selected="false" data-pane="m-cycle">Siklus inferensi</button>
     <button role="tab" aria-selected="false" data-pane="m-kb">Basis pengetahuan</button>
+    <button role="tab" aria-selected="false" data-pane="m-graph">Graph</button>
   </nav>
   <div class="mpane" id="m-flow">
     <ol class="flow" id="flow"></ol>
@@ -80,7 +81,16 @@
     <div class="kb-stats" id="kb-stats"></div>
     <table class="dense" id="rules"></table>
   </div>
+  <div class="mpane" id="m-graph" hidden>
+    <div class="gbar">
+      <button class="btn sm" type="button" id="g-case">Graph kasus ini</button>
+      <button class="btn sm" type="button" id="g-tbox">Kerangka TBox</button>
+      <span class="glegend"><i class="k-case"></i>kasus <i class="k-inference"></i>inferensi <i class="k-rule"></i>aturan <i class="k-abox"></i>ABox <i class="k-tbox"></i>TBox <i class="k-literal"></i>nilai</span>
+    </div>
+    <div id="gview" aria-label="Penjelajah knowledge graph"></div>
+    <p class="fine" id="ginfo">Pilih graph di atas. Klik simpul untuk membuka tetangganya di knowledge graph; seret untuk menggeser, gulir untuk memperbesar.</p>
+  </div>
 </aside>
-<script src="/static/app.js?v=9"></script>
+<script src="/static/app.js?v=10"></script>
 </body>
 </html>

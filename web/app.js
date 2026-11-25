@@ -628,7 +628,64 @@ $('#backdrop').onclick = () => openMind(false);
 document.querySelectorAll('.mtabs button').forEach(t => t.onclick = () => {
   document.querySelectorAll('.mtabs button').forEach(x => x.setAttribute('aria-selected', x === t));
   document.querySelectorAll('.mpane').forEach(p => p.hidden = p.id !== t.dataset.pane);
+  if (t.dataset.pane === 'm-graph' && !CY) showGraph(S.result ? 'case' : 'tbox');
 });
+
+/* ---------- penjelajah knowledge graph (Cytoscape.js, dimuat saat tab Graph dibuka) ---------- */
+let CY = null;
+const GCOL = { case: '#0f6b5c', inference: '#c2410c', rule: '#7c3aed', abox: '#2563eb', tbox: '#475569', literal: '#a3a3a3' };
+const loadCy = () => window.cytoscape ? Promise.resolve() : new Promise((ok, no) => {
+  const s = document.createElement('script');
+  s.src = 'https://cdn.jsdelivr.net/npm/cytoscape@3.30.2/dist/cytoscape.min.js';
+  s.onload = ok; s.onerror = () => no(new Error('Pustaka graph gagal dimuat (periksa koneksi).'));
+  document.head.append(s);
+});
+const toEls = d => [...d.nodes.map(n => ({ data: { ...n, color: GCOL[n.kind] || '#475569' } })), ...d.edges.map(e => ({ data: { ...e, id: `${e.source}|${e.label}|${e.target}` } }))]
+  .filter((el, i, a) => a.findIndex(x => x.data.id === el.data.id) === i);
+async function showGraph(kind) {
+  const info = $('#ginfo');
+  if (kind === 'case' && !S.result) { info.textContent = 'Graph kasus tersedia setelah ada hasil triase. Menampilkan kerangka TBox.'; kind = 'tbox'; }
+  info.textContent = 'Memuat graph...';
+  try {
+    await loadCy();
+    const res = kind === 'case'
+      ? await fetch('/api/graph/case', { method: 'POST', headers: apiHeaders(), body: JSON.stringify(facts()) })
+      : await fetch('/api/graph/tbox');
+    if (!res.ok) throw new Error((await res.json().catch(() => ({}))).detail || res.statusText);
+    const d = await res.json();
+    CY?.destroy();
+    CY = cytoscape({
+      container: $('#gview'), elements: toEls(d), wheelSensitivity: 0.3,
+      style: [
+        { selector: 'node', style: { 'background-color': 'data(color)', label: 'data(label)', 'font-size': 9, 'text-wrap': 'wrap', 'text-max-width': 120, 'text-valign': 'bottom', 'text-margin-y': 3, width: 16, height: 16, color: '#1f2937' } },
+        { selector: 'node[?focus]', style: { width: 26, height: 26, 'border-width': 3, 'border-color': '#f59e0b' } },
+        { selector: 'node:selected', style: { 'border-width': 3, 'border-color': '#111827' } },
+        { selector: 'edge', style: { width: 1.2, 'line-color': '#cbd5e1', 'target-arrow-color': '#94a3b8', 'target-arrow-shape': 'triangle', 'curve-style': 'bezier', label: 'data(label)', 'font-size': 7, color: '#64748b', 'text-rotation': 'autorotate', 'text-background-color': '#fff', 'text-background-opacity': 0.8 } },
+      ],
+      layout: { name: 'cose', animate: false, nodeRepulsion: 9000, idealEdgeLength: 90 },
+    });
+    CY.on('tap', 'node', e => expandNode(e.target));
+    info.textContent = `${kind === 'case' ? 'Graph kasus' : 'Kerangka TBox'}: ${d.nodes.length} simpul, ${d.edges.length} relasi. Klik simpul untuk membuka tetangganya.`;
+  } catch (e) { info.textContent = 'Graph gagal dimuat: ' + e.message; }
+}
+async function expandNode(n) {
+  const iri = n.data('iri'), info = $('#ginfo');
+  if (!iri) { info.textContent = `Nilai literal: ${n.data('label')}`; return; }
+  const short = iri.split(/[#/]/).pop();
+  if (!/^[\w.-]+$/.test(short) || !iri.startsWith('http')) { info.textContent = iri; return; }
+  try {
+    const res = await fetch('/api/graph/node?iri=' + encodeURIComponent(iri));
+    if (!res.ok) throw new Error(res.statusText);
+    const d = await res.json();
+    const add = toEls(d).filter(el => !CY.getElementById(el.data.id).length);
+    add.forEach(el => { if (!el.data.source) delete el.data.focus; });
+    CY.add(add);
+    CY.layout({ name: 'cose', animate: true, animationDuration: 400, nodeRepulsion: 9000, idealEdgeLength: 90, fit: true, padding: 20 }).run();
+    info.textContent = `${d.label.replace('\n', ' · ')}: ${d.total} triple di knowledge graph` + (d.total > d.edges.length ? ` (ditampilkan ${d.edges.length})` : '') + (add.length ? `, ${add.filter(x => !x.data.source).length} simpul baru.` : ', semua tetangga sudah tampil.');
+  } catch (e) { info.textContent = 'Tetangga gagal dimuat: ' + e.message; }
+}
+$('#g-case').onclick = () => showGraph('case');
+$('#g-tbox').onclick = () => showGraph('tbox');
 
 const tidy = x => String(x).replace(/Mandiri_[0-9a-f]{12}/g, 'pasien');
 const tripleList = (ts, owl) => `<ul class="triples">${ts.map(([s, p, o]) => `<li class="${owl ? 'owl' : ''}"><span class="s">${esc(tidy(s))}</span><span class="p">${esc(p)}</span><span class="o">${esc(tidy(o))}</span></li>`).join('')}</ul>`;
