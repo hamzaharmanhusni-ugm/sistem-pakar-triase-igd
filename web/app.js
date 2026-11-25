@@ -51,7 +51,10 @@ const nurse = () => S.mode === 'nurse';
 const toggle = (arr, v) => arr.includes(v) ? arr.filter(x => x !== v) : [...arr, v];
 const WHO = { self: ['Anda', 'Anda'], child: ['anak Anda', 'Anak Anda'], adult: ['orang yang sakit', 'Orang yang sakit'] };
 const subj = (cap = false) => (WHO[S.who] || WHO.adult)[cap ? 1 : 0];
-const MIN_AGE = { self: 12, adult: 18 };  // ponytail: anak di bawah 12 tahun diisi orang tua lewat "Anak saya"
+const MIN_AGE = { self: 12, adult: 18 };
+const NARROW = () => matchMedia('(max-width: 560px)').matches;
+const FOLD_OPEN = new Set();  // bagian formulir yang dibuka pengguna di HP, dipertahankan saat layar digambar ulang
+document.addEventListener('toggle', e => { const k = e.target.dataset?.fold; if (k && NARROW()) e.target.open ? FOLD_OPEN.add(k) : FOLD_OPEN.delete(k); }, true);  // ponytail: anak di bawah 12 tahun diisi orang tua lewat "Anak saya"
 
 const ageVal = () => parseFloat(String(S.age).replace(',', '.'));
 function ageYears() {
@@ -252,6 +255,15 @@ const VIEWS = {
     if (!VOC) return '<p class="q-help">Memuat pilihan dari knowledge graph...</p>';
     const chips = (list, sel, act, alarm) => list.map(o => `<button class="chip ${alarm ? 'alarm' : ''}" type="button" data-act="${act}" data-v="${o.id}" ${pressed(sel(o.id))}>${esc(o.label)}</button>`).join('');
     const fx = c => chips(VOC.findings[c], id => S.findings.includes(id), 'finding', c !== 'Symptom' && c !== 'RiskFactor');
+    // daftar panjang dapat dibuka-tutup di HP; di layar lebar selalu terbuka. Pilihan yang dicentang tetap terlihat di ringkasan.
+    const fold = (key, title, list, sel, html) => {
+      const picked = list.filter(o => sel(o.id)).map(o => o.label);
+      const open = !NARROW() || FOLD_OPEN.has(key);
+      return `<details class="fold" data-fold="${key}" ${open ? 'open' : ''}><summary>${title} (${list.length})${picked.length ? ` · <b>${picked.length} dipilih</b>` : ''}</summary>
+        ${picked.length && !open ? `<p class="fold-picked">${esc(picked.join(', '))}</p>` : ''}<div class="chips">${html}</div></details>`;
+    };
+    const F = c => VOC.findings[c] || [];
+    const isF = id => S.findings.includes(id);
     const vit = [['temp', 'Suhu', '°C'], ['hr', 'Nadi', 'x/menit'], ['rr', 'Napas', 'x/menit'], ['spo2', 'SpO2', '%'], ['sbp', 'TD sistolik', 'mmHg']];
     const [hr, rr] = safeLimits();
     return `<div class="nform">
@@ -272,10 +284,10 @@ const VIEWS = {
       <div class="chips">${fx('LifeSavingIndicator')}</div></section>
 
     <section class="nsec"><h2><i>B</i>Situasi risiko tinggi atau perubahan kesadaran</h2>
-      <div class="chips">${fx('HighRiskSituation')}${fx('AlteredMentalStatus')}</div></section>
+      ${fold('B', 'Pilih situasi risiko tinggi', [...F('HighRiskSituation'), ...F('AlteredMentalStatus')], isF, fx('HighRiskSituation') + fx('AlteredMentalStatus'))}</section>
 
     <section class="nsec"><h2><i>2</i>Keluhan lain</h2>
-      <div class="chips">${fx('Symptom')}${fx('RiskFactor')}</div></section>
+      ${fold('S', 'Pilih keluhan', [...F('Symptom'), ...F('RiskFactor')], isF, fx('Symptom') + fx('RiskFactor'))}</section>
 
     <section class="nsec"><h2><i>3</i>Onset dan nyeri (OPQRST)</h2>
       <div class="chips">${chips(VOC.onset, id => S.onset === id, 'onset')}</div>
@@ -283,10 +295,10 @@ const VIEWS = {
       <p class="sub-label">Skala nyeri (NRS 0-10)</p>
       <div class="pain" role="group" aria-label="Skala nyeri">${Array.from({ length: 11 }, (_, i) => `<button type="button" data-act="pain" data-v="${i}" style="--c:${PAIN_COLOR(i)}" ${pressed(S.pain === i)}>${i}</button>`).join('')}</div>
       <p class="sub-label">Lokasi nyeri</p>
-      <div class="chips">${chips(VOC.pain_sites, id => S.sites.includes(id), 'site')}</div></section>
+      ${fold('P', 'Pilih lokasi nyeri', VOC.pain_sites, id => S.sites.includes(id), chips(VOC.pain_sites, id => S.sites.includes(id), 'site'))}</section>
 
     <section class="nsec"><h2><i>4</i>Riwayat (SAMPLE)</h2>
-      <p class="sub-label">Riwayat penyakit dan alergi</p><div class="chips">${chips(VOC.conditions, id => S.cond.includes(id), 'cond')}</div>
+      <p class="sub-label">Riwayat penyakit dan alergi</p>${fold('H', 'Pilih riwayat', VOC.conditions, id => S.cond.includes(id), chips(VOC.conditions, id => S.cond.includes(id), 'cond'))}
       <p class="sub-label">Obat</p><div class="chips">${chips(VOC.medications, id => S.meds.includes(id), 'med')}</div></section>
 
     <section class="nsec"><h2><i>D</i>Tanda vital dan kesadaran</h2>
@@ -738,9 +750,14 @@ function laneLayout(animate = false) {
     c.sort((a, b) => key(a) - key(b)).forEach((n, i) => { y[n.id()] = i * ROW_H; });
   });
   const tallest = Math.max(1, ...cols.map(c => c.length));
-  const pos = {};
-  cols.forEach((c, ci) => c.forEach(n => { pos[n.id()] = { x: ci * LANE_W, y: y[n.id()] + (tallest - c.length) * ROW_H / 2 }; }));
-  CY.add(LANES.map(([k, t, sub], ci) => ({ data: { id: 'lane_' + k, kind: 'lane', label: `${t}\n${sub}` }, position: { x: ci * LANE_W, y: -70 }, selectable: false, grabbable: false })));
+  const pos = {}, narrow = CY.width() < 600;  // layar HP: lajur menjadi baris (atas ke bawah) agar graph tidak mengecil
+  const COL_W = 96, LANE_H = 150, widest = Math.max(1, ...cols.map(c => c.length)) * COL_W;
+  cols.forEach((c, ci) => c.forEach(n => {
+    pos[n.id()] = narrow ? { x: y[n.id()] / ROW_H * COL_W + (widest - c.length * COL_W) / 2, y: ci * LANE_H }
+      : { x: ci * LANE_W, y: y[n.id()] + (tallest - c.length) * ROW_H / 2 };
+  }));
+  CY.add(LANES.map(([k, t, sub], ci) => ({ data: { id: 'lane_' + k, kind: 'lane', label: narrow ? t : `${t}\n${sub}` },
+    position: narrow ? { x: widest / 2 - COL_W / 2, y: ci * LANE_H - 58 } : { x: ci * LANE_W, y: -70 }, selectable: false, grabbable: false })));
   CY.layout({ name: 'preset', positions: n => pos[n.id()] || n.position(), fit: true, padding: 24, animate, animationDuration: 300 }).run();
 }
 // Knowledge base lengkap: kotak kelas (compound node) berisi individunya, disusun seperti rak
@@ -777,7 +794,7 @@ const GSTYLE = [
   { selector: 'edge[rel="sub"]', style: { 'line-color': '#64748b', 'target-arrow-color': '#64748b', 'target-arrow-fill': 'hollow', 'arrow-scale': 1.2 } },
   { selector: 'edge.hl', style: { label: 'data(label)', 'font-size': 9, color: '#334155', 'text-rotation': 'autorotate', 'text-background-color': '#fff', 'text-background-opacity': 0.9,
     'text-background-padding': 2, 'line-color': '#475569', 'target-arrow-color': '#475569', width: 2 } },
-  { selector: 'node[kind="esi"]', style: { shape: 'round-rectangle', width: 'label', height: 'label', padding: 6, 'text-valign': 'center', 'text-margin-y': 0, color: '#fff', 'font-weight': 600 } },
+  { selector: 'node[kind="esi"]', style: { label: e => CY && CY.width() < 600 ? e.id().slice(1).replace('_', ' ') : e.data('label'), shape: 'round-rectangle', width: 'label', height: 'label', padding: 6, 'text-valign': 'center', 'text-margin-y': 0, color: '#fff', 'font-weight': 600 } },
   { selector: 'node[esi="final"]', style: { 'border-width': 4, 'border-color': '#111827', 'font-size': 12 } },
   { selector: 'node[esi="candidate"]', style: { 'background-color': '#fff', color: '#b91c1c', 'border-width': 2, 'border-style': 'dashed', 'border-color': '#b91c1c' } },
   { selector: 'node[esi="none"]', style: { 'background-color': '#e5e7eb', color: '#6b7280' } },
@@ -786,7 +803,7 @@ const GSTYLE = [
   { selector: 'edge[?kb]', style: { display: 'none' } },
   { selector: 'edge[?kb].hl', style: { display: 'element' } },
   { selector: '.faded', style: { opacity: 0.12 } },
-  { selector: 'node[kind="lane"]', style: { shape: 'round-rectangle', width: LANE_W - 24, height: 40, 'background-color': '#e7eeeb', color: '#334155', 'font-size': 11,
+  { selector: 'node[kind="lane"]', style: { shape: 'round-rectangle', width: () => CY && CY.width() < 600 ? 150 : LANE_W - 24, height: 40, 'background-color': '#e7eeeb', color: '#334155', 'font-size': 11,
     'font-weight': 700, 'text-valign': 'center', 'text-margin-y': 0, 'text-wrap': 'wrap', 'text-max-width': LANE_W - 30, events: 'no', opacity: 1 } },
 ];
 // Contoh kasus (mode perawat) agar graph kasus dapat dilihat tanpa mengisi formulir; satu contoh untuk setiap level ESI

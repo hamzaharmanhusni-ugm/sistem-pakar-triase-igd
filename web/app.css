@@ -323,6 +323,22 @@ table.dense tr.fired td { background: #123a30; }
   #mind-wide { display: none; }
   .kb-stats { grid-template-columns: 1fr; }
   .foot { padding-inline: 12px; }
+  /* formulir perawat: pilihan berupa label ringkas yang membungkus, bukan baris selebar layar */
+  .nform .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .nform .chip { padding: 8px 12px; min-height: 44px; font-size: .93rem; gap: 8px; }
+  .nform .chip::before { width: 16px; height: 16px; }
+  .nsec { gap: 8px; padding-top: 14px; margin-top: 10px; }
+  .nsec .seg { grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); grid-template-columns: none; }
+  .nsec .seg button { padding: 0 6px; font-size: .92rem; line-height: 1.2; }
+  .age .field { font-size: 1.6rem; }
+  .cta-hint { font-size: .85rem; }
+  /* panel teknis: judul ringkas, tab satu baris yang dapat digeser */
+  .mind-head { padding: 14px 16px 8px; }
+  .mind-head h2 { font-size: 1.15rem; }
+  .mind-head p { display: none; }
+  .mtabs { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; padding-inline: 8px; }
+  .mtabs::-webkit-scrollbar { display: none; }
+  .mtabs button { white-space: nowrap; flex: 0 0 auto; font-size: .9rem; padding: 8px 10px 10px; }
 }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
@@ -391,3 +407,31 @@ table.dense tr.fired td { background: #123a30; }
 .qitem .btn { margin-left: 8px; }
 #m-sparql .ai-out { color: #e6efe9; } #m-sparql .ai-out code { color: #f3d58a; background: #22322b; }
 #m-sparql h3 { margin-top: 18px; }
+
+/* daftar formulir yang dapat dibuka-tutup (HP) */
+.fold > summary { display: none; }
+@media (max-width: 560px) {
+  .fold > summary { display: flex; align-items: center; gap: 8px; cursor: pointer; min-height: 44px; padding: 0 14px; border: 1.5px solid var(--line); border-radius: var(--r-sm);
+    font: 600 .95rem var(--font); color: var(--ink-2); list-style: none; }
+  .fold > summary::-webkit-details-marker { display: none; }
+  .fold > summary::after { content: ""; margin-left: auto; width: 8px; height: 8px; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: rotate(45deg); }
+  .fold[open] > summary { margin-bottom: 8px; }
+  .fold[open] > summary::after { transform: rotate(-135deg); }
+  .fold > summary b { color: var(--primary-2); }
+  .fold-picked { font-size: .88rem; color: var(--ink-2); margin: 6px 2px 0; }
+}
+
+/* tab Graph di HP (ditaruh paling bawah agar menimpa aturan dasar tab Graph) */
+@media (max-width: 560px) {
+  /* tab Graph: kontrol dalam satu baris geser, graph lebih tinggi */
+  #m-graph > .gbar { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; margin-inline: -16px; padding-inline: 16px; }
+  #m-graph > .gbar::-webkit-scrollbar { display: none; }
+  #m-graph > .gbar .btn { flex: 0 0 auto; white-space: nowrap; }
+  .gsample { font-size: .85rem; } .gsample select { min-height: 44px; font-size: .95rem; }
+  .gsearch .field { font-size: .95rem; min-height: 44px; }
+  .gfilter { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; font-size: .78rem; padding-bottom: 2px; }
+  .gfilter label { flex: 0 0 auto; }
+  #gview { height: 72vh; }
+  .gtools { top: auto; bottom: 10px; }
+  #m-sparql > * { max-width: 100%; }
+}
