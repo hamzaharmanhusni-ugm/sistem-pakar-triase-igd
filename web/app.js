@@ -329,6 +329,7 @@ const VIEWS = {
           <li>Bila memburuk di jalan (tidak sadar, sesak berat, kejang), telepon 119.</li></ul></div>` : `<div><h2>Sambil menunggu</h2><ul class="tips">
           <li>Perhatikan perubahan keluhan. Segera ke IGD bila muncul tanda bahaya seperti sesak berat atau sulit dibangunkan.</li>
           <li>Bawa kartu identitas atau BPJS saat berobat.</li></ul></div>`}
+        ${aiBox('lay')}
       </section></div>`;
   },
 };
@@ -351,7 +352,53 @@ function nurseResult() {
       <ol class="reasons nurse-reasons">${reasons.map((t, i) => `<li style="--i:${i}"><span class="n">${esc(t.rule)}</span><p>${esc(num(t.reason))}<small>${esc(t.source)}</small></p></li>`).join('')}</ol>
       ${r.alerts.filter(a => !a.startsWith('Resource')).map(a => `<p class="alert-box">${esc(a)}</p>`).join('')}
       <div class="acts"><button class="btn ghost sm" type="button" data-act="back">Ubah data triase</button><button class="btn ghost sm" type="button" data-act="restart">Pasien baru</button></div>
+      ${aiBox('nurse')}
     </section></div>`;
+}
+
+/* ---------- penjelasan AI (Claude, KG-RAG): hanya menjelaskan, level ESI tetap dari aturan ---------- */
+let LLM = false;
+const AI_BTN = {
+  nurse: [['klinis', 'Detail klinis'], ['insight', 'Insight'], ['teknis', 'Detail teknis'], ['tbox', 'TBox'], ['abox', 'ABox']],
+  lay: [['klinis', 'Jelaskan hasil ini'], ['insight', 'Apa yang perlu diperhatikan']],
+};
+function aiBox(aud) {
+  if (!LLM) return '';
+  return `<section class="ai-box">
+    <h2>Penjelasan AI</h2>
+    <p class="ai-note">Dirangkai Claude dari jejak sistem pakar dan knowledge graph kasus ini. Level ESI tetap diputuskan aturan, bukan AI.</p>
+    <div class="ai-btns">${AI_BTN[aud].map(([k, t]) => `<button class="btn ghost sm" type="button" data-act="explain" data-v="${k}" aria-pressed="false">${t}</button>`).join('')}</div>
+    <form class="own" data-act="ask"><input class="field" id="ask" maxlength="500" autocomplete="off" aria-label="Pertanyaan lanjutan"
+      placeholder="${aud === 'lay' ? 'Tanyakan sesuatu tentang hasil ini' : 'Pertanyaan lanjutan, mis. mengapa bukan ESI 3?'}"><button class="btn ghost sm" type="submit">Tanya</button></form>
+    <div id="ai-out" class="ai-out" aria-live="polite"></div></section>`;
+}
+function md(text) {  // Markdown sederhana dari Claude -> HTML aman (semua teks di-escape lebih dulu)
+  const inline = t => esc(t).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/`([^`]+)`/g, '<code>$1</code>').replace(/(^|[\s(])\*([^*\s][^*]*)\*/g, '$1<i>$2</i>');
+  const out = [];
+  let list = null;
+  for (const raw of String(text).split('\n')) {
+    const l = raw.trim();
+    const li = l.match(/^(?:[-*]|\d+\.)\s+(.*)/);
+    if (li) { (list = list || []).push(`<li>${inline(li[1])}</li>`); continue; }
+    if (list) { out.push(`<ul>${list.join('')}</ul>`); list = null; }
+    if (!l) continue;
+    const h = l.match(/^#{1,4}\s+(.*)/);
+    out.push(h ? `<h4>${inline(h[1])}</h4>` : `<p>${inline(l)}</p>`);
+  }
+  if (list) out.push(`<ul>${list.join('')}</ul>`);
+  return out.join('');
+}
+async function explainAI(aspect, question) {
+  const out = $('#ai-out');
+  if (!out) return;
+  document.querySelectorAll('[data-act=explain]').forEach(b => b.setAttribute('aria-pressed', !question && b.dataset.v === aspect));
+  out.innerHTML = '<p class="ai-wait">Claude sedang menyusun penjelasan...</p>';
+  try {
+    const res = await fetch('/api/explain', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...facts(), aspect, question }) });
+    const j = await res.json();
+    if (!res.ok) throw new Error(j.detail || res.statusText);
+    out.innerHTML = (question ? `<p class="ai-q">${esc(question)}</p>` : '') + md(j.text);
+  } catch (e) { out.innerHTML = `<p class="note warn">${esc(e.message)}</p>`; }
 }
 
 function sbar() {
@@ -490,6 +537,7 @@ document.addEventListener('click', e => {
     case 'finish': { const err = vitalError(); if (err) { $('#measure-err').textContent = err; break; } go(I.result); break; }
     case 'restart': reset(); break;
     case 'think': openMind(true); break;
+    case 'explain': explainAI(v); break;
   }
 });
 document.addEventListener('input', e => {
@@ -502,6 +550,12 @@ document.addEventListener('input', e => {
 document.addEventListener('keydown', e => {
   if (e.key === 'Enter' && e.target.id === 'age' && ageOk() && !nurse()) go(S.step + 1);
   if (e.key === 'Escape' && !$('#mind').hidden) openMind(false);
+});
+document.addEventListener('submit', e => {
+  if (e.target.dataset.act !== 'ask') return;
+  e.preventDefault();
+  const q = $('#ask').value.trim();
+  if (q) explainAI('klinis', q);
 });
 document.addEventListener('submit', async e => {
   if (e.target.dataset.act !== 'parse') return;
@@ -646,6 +700,7 @@ fetch('/api/rules').then(r => r.json()).then(rs => {
     rs.map(r => `<tr data-rule="${esc(r.id)}"><td>${esc(r.id)}</td><td>${esc(r.if)}</td><td>${esc(r.then)}</td><td>${esc(r.source)}</td></tr>`).join('');
 });
 fetch('/api/health').then(r => r.json()).then(h => {
+  LLM = !!h.llm?.enabled;
   $('#kb-stats').innerHTML = `<div><b>${fmt(h.triples_kb)}</b>triple pengetahuan</div><div><b>${h.rules}</b>aturan IF-THEN</div><div><b>${h.backend === 'graphdb' ? 'GraphDB' : 'rdflib'}</b>${h.backend === 'graphdb' ? 'localhost:7201' : 'in-memory'}</div>`;
 });
 if (new URLSearchParams(location.search).has('presentasi')) openMind(true);

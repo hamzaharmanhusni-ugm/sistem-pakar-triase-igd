@@ -327,3 +327,18 @@ table.dense tr.fired td { background: #123a30; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
+
+/* penjelasan AI */
+.ai-box { margin-top: 22px; padding-top: 18px; border-top: 1px solid var(--line); display: grid; gap: 10px; }
+.ai-box h2 { font-size: 1.05rem; font-weight: 800; }
+.ai-note { font-size: .9rem; color: var(--ink-3); }
+.ai-btns { display: flex; flex-wrap: wrap; gap: 8px; }
+.ai-btns .btn[aria-pressed="true"] { background: var(--primary-soft); box-shadow: inset 0 0 0 1.5px var(--primary); }
+.ai-out { font-size: .98rem; line-height: 1.55; color: var(--ink); }
+.ai-out:empty { display: none; }
+.ai-out p, .ai-out ul, .ai-out h4 { margin: 0 0 8px; }
+.ai-out ul { padding-left: 20px; }
+.ai-out h4 { font-size: 1rem; font-weight: 800; margin-top: 12px; }
+.ai-out code { font: .86em var(--mono); background: var(--bg); padding: 1px 4px; border-radius: 4px; }
+.ai-q { font-weight: 700; border-left: 3px solid var(--primary); padding-left: 10px; }
+.ai-wait { color: var(--ink-3); font-style: italic; }

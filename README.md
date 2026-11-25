@@ -126,6 +126,8 @@ docs/       tangkapan layar
 | --- | --- | --- |
 | POST | `/api/assess` | Fakta terstruktur (usia, temuan, nyeri, tanda vital) → level ESI, saran, jejak penalaran |
 | POST | `/api/parse` | Keluhan teks bebas → ID temuan di knowledge graph |
+| POST | `/api/explain` | Penjelasan Claude (KG-RAG) atas hasil: `aspect` = `klinis`, `insight`, `teknis`, `tbox`, `abox`, atau `question` bebas. Inferensi dijalankan ulang di server; level ESI tidak dapat diubah AI |
+| GET | `/api/vocab` | Pilihan jawaban formulir (riwayat, obat, wilayah tubuh, onset, resource) dari knowledge graph |
 | POST | `/api/session`, `/api/chat` | Dialog percakapan (mode perawat) |
 | GET | `/api/rules` | Katalog aturan beserta sumbernya |
 | GET | `/api/findings` | Daftar temuan klinis |

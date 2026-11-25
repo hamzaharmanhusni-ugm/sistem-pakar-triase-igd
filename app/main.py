@@ -85,9 +85,9 @@ def vocab():
     return engine.vocab()
 
 
-@app.post('/api/assess')
-def assess(body: AssessIn):
-    facts = body.model_dump()
+def _run(body: AssessIn):
+    """Validasi jawaban terhadap knowledge graph lalu jalankan inferensi. Dipakai /api/assess dan /api/explain."""
+    facts = body.model_dump(exclude={'aspect', 'question'})
     known = engine.lexicon('Finding')
     bad = [f for f in facts['findings'] if f not in known]
     v = engine.vocab()
@@ -104,8 +104,31 @@ def assess(body: AssessIn):
         facts.update(resources_assessed=True)
     else:
         facts.update(resources=[], self_report=True)
-    r = engine.infer(facts, f'{"Triase" if nurse else "Mandiri"}_{uuid.uuid4().hex[:12]}')
+    return engine.infer(facts, f'{"Triase" if nurse else "Mandiri"}_{uuid.uuid4().hex[:12]}'), facts, nurse
+
+
+@app.post('/api/assess')
+def assess(body: AssessIn):
+    r, _, _ = _run(body)
     return {'result': r, 'narrative': (llm.narrate(r) if r['esi'] else None) or dialog.template_narrative(r), 'llm': llm.status()}
+
+
+class ExplainIn(AssessIn):
+    aspect: Literal['klinis', 'insight', 'teknis', 'tbox', 'abox'] = 'klinis'
+    question: str | None = Field(None, max_length=500)
+
+
+@app.post('/api/explain')
+def explain(body: ExplainIn):
+    """Penjelasan Claude (KG-RAG) atas hasil sistem pakar. Inferensi dijalankan ulang di server dari jawaban yang sama,
+    sehingga yang dijelaskan selalu hasil aturan, bukan data kiriman klien."""
+    r, facts, nurse = _run(body)
+    if not r['esi']:
+        raise HTTPException(422, 'Belum ada hasil untuk dijelaskan.')
+    text = llm.explain(r, facts, body.aspect, (body.question or '').strip() or None, 'nurse' if nurse else 'lay')
+    if text is None:
+        raise HTTPException(503, 'Penjelasan AI tidak tersedia: ' + (llm.status()['reason'] or 'panggilan Claude gagal'))
+    return {'text': text, 'aspect': body.aspect, 'model': llm.MODEL}
 
 
 class ParseIn(BaseModel):
